@@ -3,9 +3,13 @@
 Input: 24-bit uncompressed BMP file
 Output: another 24-bit uncompressed BMP file
 Description:
-	Once the pixel buffer in the BMP is extracted, the program iterates over every pixel, deciding whether a pixel is closer in brightness to black or white.
-	If it is closer to white, then the corresponding pixel in the output BMP will be white, and vice versa if it's closer to black.
-	Since the BMP file format encodes pixels in the RGB format, the true brightness of a pixel is (in this program) determined by the mean brightness of each of its red, green and blue channels.
+	Once the pixel buffer in the BMP is extracted, the program iterates over every pixel,
+	  deciding whether a pixel is closer in brightness to black or white.
+	If it is closer to white, then the corresponding pixel in the output BMP will be white,
+	  and vice versa if it's closer to black.
+	Since the BMP file format encodes pixels in the RGB format,
+	  the true brightness of a pixel is (in this program) determined
+	  by the mean brightness of each of its red, green and blue channels.
 */
 
 #include <stdio.h>
@@ -68,8 +72,7 @@ int main(int argc, char **argv) {
 	int off = le16(header+0xa);
 	int x = le16(header+0x12);
 	int y = le16(header+0x16);
-	int xr = x * 3;
-	xr += (4 - ((x * 3) % 4)) % 4;
+	int xr = (x * 3) + (x % 4);
 
 	if (sz != off + xr * y) {
 		printf("Incorrect size\n"
