@@ -4,12 +4,14 @@ Input: 24-bit uncompressed BMP file
 Output: another 24-bit uncompressed BMP file
 Description:
 	Once the pixel buffer in the BMP is extracted, the program iterates over every pixel,
-	  deciding whether a pixel is closer in brightness to black or white.
+	deciding whether a pixel is closer in brightness to black or white.
+	
 	If it is closer to white, then the corresponding pixel in the output BMP will be white,
-	  and vice versa if it's closer to black.
+	and vice versa if it's closer to black.
+	
 	Since the BMP file format encodes pixels in the RGB format,
-	  the true brightness of a pixel is (in this program) determined
-	  by the mean brightness of each of its red, green and blue channels.
+	the true brightness of a pixel is (in this program) determined
+	by the mean brightness of each of its red, green and blue channels.
 */
 
 #include <stdio.h>
