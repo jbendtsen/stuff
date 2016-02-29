@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
 	int i, j, o = 0;
 	for (i = 0; i < y; i++) {
 		for (j = 0; j < x; j++, o += 3) contrast(buf+o);
-		o += xr - x * 3;
+		o += x % 4;
 	}
 
 	f = fopen(argv[2], "wb");
