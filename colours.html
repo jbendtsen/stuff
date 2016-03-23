@@ -1,0 +1,107 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<script>
+var my_table;
+
+function test_str(str) {
+	if (str == null) alert("GG");
+	else alert(str);
+};
+
+function activate(n) {
+	var x = n % 3, y = Math.floor(n / 3);
+	if (my_table[y][x] == null) return;
+	my_table[y][x].trend[1] = 1;
+	my_table[y][x].active = true;
+};
+
+function advance_colour(x, y) {
+	if (!my_table[y][x].active) return;
+
+	var colour = my_table[y][x].colour;
+	var trend = my_table[y][x].trend;
+
+	for (i = 0; i < 3; i++) {
+		var prev = (i+2) % 3;
+		var c = colour[i];
+		var mult = 8;
+		//if (c <= 0x30 || c >= 0xd0) mult *= 2;
+		//if (c <= 0x18 || c >= 0xe8) mult *= 2;
+		c += trend[i] * mult;
+		if (c > 0xff) {
+			c = 0xff;
+			trend[i] = 0;
+			trend[prev] = -1;
+			colour[i] = c;
+			break;
+		}
+		if (c < 0) {
+			c = 0;
+			trend[i] = 0;
+			trend[prev] = 1;
+			colour[i] = c;
+			break;
+		}
+		colour[i] = c;
+	}
+	//alert(colour);
+	my_table[y][x].colour = colour;
+	my_table[y][x].trend = trend;
+};
+
+function rgb_str(colour) {
+	return "rgb(" + colour[0] + "," + colour[1] + "," + colour[2] + ")";
+};
+
+function disco_darunia() {
+	my_table = new Array(3);
+
+	var i = 0, j = 0;
+	for (i = 0; i < 3; i++) {
+		my_table[i] = new Array(3);
+		for (j = 0; j < 3; j++) {
+			my_table[i][j] = {
+				colour : [255, 0, 0],
+				trend : [0, 0, 0],
+				active : false
+			};
+		}
+	}
+
+	setInterval(function() {
+		for (i = 0; i < 3; i++) {
+			for (j = 0; j < 3; j++) {
+				advance_colour(j, i);
+				if (my_table[i][j].active) {
+					var str = "element" + (i*3+j);
+					var cell = document.getElementById(str);
+					cell.style.backgroundColor = rgb_str(my_table[i][j].colour);
+				}
+			}
+		}
+	}, 40);
+};
+	</script>
+</head>
+<body>
+	<table id="table_area" border="1px solid black">
+		<tr>
+			<td id="element0" onmouseover="activate(0)" width="100px" height="100px" bgcolor="white"></td>
+			<td id="element1" onmouseover="activate(1)" width="100px" height="100px" bgcolor="white"></td>
+			<td id="element2" onmouseover="activate(2)" width="100px" height="100px" bgcolor="white"></td>
+		</tr>
+		<tr>
+			<td id="element3" onmouseover="activate(3)" width="100px" height="100px" bgcolor="white"></td>
+			<td id="element4" onmouseover="activate(4)" width="100px" height="100px" bgcolor="white"></td>
+			<td id="element5" onmouseover="activate(5)" width="100px" height="100px" bgcolor="white"></td>
+		</tr>
+		<tr>
+			<td id="element6" onmouseover="activate(6)" width="100px" height="100px" bgcolor="white"></td>
+			<td id="element7" onmouseover="activate(7)" width="100px" height="100px" bgcolor="white"></td>
+			<td id="element8" onmouseover="activate(8)" width="100px" height="100px" bgcolor="white"></td>
+		</tr>
+	</table>
+	<script>disco_darunia();</script>
+</body>
+</html>
