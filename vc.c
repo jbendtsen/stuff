@@ -329,6 +329,8 @@ void convert_digit_array_base(da_t *dst, da_t *src, int base) {
 
 				in_mul = realloc(in_mul, n_muls * sizeof(da_t));
 				out_mul = realloc(out_mul, n_muls * sizeof(da_t));
+				memset(&in_mul[n_muls-1], 0, sizeof(da_t));
+				memset(&out_mul[n_muls-1], 0, sizeof(da_t));
 
 				// Get the latest power of the output base
 				int pm = c - (c % (base-1));
@@ -350,12 +352,12 @@ void convert_digit_array_base(da_t *dst, da_t *src, int base) {
 		c = 0;
 	}
 	delete_digit_array(&in);
-	for (c = 0; c < n_powers; c++) {
+	for (c = 0; c < n_muls; c++) {
 		delete_digit_array(&in_mul[c]);
 		delete_digit_array(&out_mul[c]);
 	}
-	free(in_pow);
-	free(out_pow);
+	free(in_mul);
+	free(out_mul);
 }
 
 // This function converts a string of digits to a digit array
@@ -368,18 +370,11 @@ void str_to_digit_array(da_t *array, char *str) {
 		str++;
 	}
 
-	char *s = calloc(strlen(str)+1, 1);
-	prune(s, str, base);
-	if (!strlen(s)) {
-		free(s);
-		return;
-	}
-	array->len = strlen(s);
+	array->len = strlen(str);
 	array->d = calloc(array->len, 1);
 
 	int i;
-	for (i = 0; s[i]; i++) array->d[i] = charconv(s[i]);
-	free(s);
+	for (i = 0; str[i]; i++) array->d[i] = charconv(str[i]);
 }
 
 // And this function does the exact opposite
@@ -403,6 +398,9 @@ char *convert_base(char *in_str, int in_base, int out_base) {
 	da_t in_num = {0}, out_num = {0};
 	in_num.base = in_base;
 
+	char *pruned = calloc(strlen(in_str) + 1, 1);
+	prune(pruned, in_str, in_base);
+
 	str_to_digit_array(&in_num, in_str);
 	if (!in_num.len) return NULL;
 
@@ -410,6 +408,7 @@ char *convert_base(char *in_str, int in_base, int out_base) {
 
 	char *out_str = digit_array_to_str(&out_num);
 
+	free(pruned);
 	delete_digit_array(&in_num);
 	delete_digit_array(&out_num);
 
