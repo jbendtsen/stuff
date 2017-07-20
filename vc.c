@@ -2,13 +2,11 @@
    The purpose of this program is to convert numbers between bases and to and from strings.
    For base conversion, this program can convert to and from any base from 2 to 36.
 
-   The reason the source takes up 15K instead of 5K is due to the fact that input and output
-   numbers are not used as traditional integers but arrays of digits, allowing for numbers
-   virtually unlimited in size. A consequence of this decision to use digit arrays over integers
-   is that all arithmetic and other such operations must be written from the ground up, as standard
-   integers function completely differently to an array of digits.
-
-   As such, this program ends up being more complex than one might have assumed.
+   The scale of this program is due to the fact that input and output numbers
+   are not used as traditional integers but instead as arrays of digits, allowing for
+   numbers virtually unlimited in size. A consequence of the decision to use digit arrays
+   over integers is that all arithmetic and other such operations must be written from
+   the ground up, as standard integers function completely differently to an array of digits.
 */
 
 #include <stdio.h>
