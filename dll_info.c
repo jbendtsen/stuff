@@ -327,7 +327,12 @@ int main(int argc, char **argv) {
 
 	// If no options were specified, print the section table and leave
 	if (argc == 2) {
-		printf("Flags: 0x%04x\nNumber of sections: %d\n", flags, n_sections);
+		printf("Flags: 0x%04x\n"
+		       "Sections: %d\n"
+		       "Exports: %d\n"
+		       "Imports: %d\n",
+				flags, n_sections, el.len, il.len);
+
 		char type[16] = {0};
 		for (i = 0; i < n_sections; i++) {
 			switch (section[i].type) {
