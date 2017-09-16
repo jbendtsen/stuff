@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width">
+
+    <title>Raw Audio Player</title>
+
+    <link rel="stylesheet" href="">
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+    <form name="main" onsubmit="return play_url();">
+      URL: <br>
+      <input type="text" name="url" id="url"><br><br>
+      Sampling rate (optional): <br>
+      <input type="text" name="rate" id="rate"><br><br>
+      <input type="submit" value="Play">
+    </form>
+  </body>
+  <script>
+
+function play_url() {
+	var url = document.main.url.value;
+	if (url == undefined) {
+	  alert("Please enter a URL");
+		return false;
+	}
+
+	var rate = document.main.rate.value;
+	if (rate == undefined) rate = 0;
+
+	//alert("url: " + url + "\nrate: " + rate);
+
+	var xhr = new XMLHttpRequest();
+	xhr.open('GET', url);
+	xhr.responseType = "arraybuffer";
+
+	xhr.onload = function(e) {
+		if (this.status != 200) {
+			alert("Error: " + this.status);
+			return;
+		}
+
+		var temp = 0;
+		var data = new Uint8Array(this.response);
+		var samples = new Float32Array(data.length);
+		for (var i = 0; i < samples.length; i++) {
+			temp = ((data[i] ^ 0x80) << 8) | 0x80;
+			samples[i] = temp / 32768.0;
+		}
+
+		var ctx = new AudioContext();
+		rate = rate <= 0 ? ctx.sampleRate : rate;
+		var buf = ctx.createBuffer(1, samples.length, rate);
+		var player = ctx.createBufferSource();
+
+		buf.getChannelData(0).set(samples);
+		player.buffer = buf;
+		player.connect(ctx.destination);
+		player.start(0);
+	};
+	xhr.send();
+
+	return false;
+}
+
+  </script>
+</html>
