@@ -1,8 +1,13 @@
+/*
+   hexed.c - A command-line driven file editor
+   This tool can do most common tasks that regular hex editors can, such as:
+   inserting, replacing, removing and copying data, searching and diffing files,
+   and viewing parts of files with hex+ASCII.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define printff(msg) puts(msg); fflush(stdout);
 
 typedef unsigned char u8;
 
@@ -67,6 +72,7 @@ void save_buffer(buffer *buf) {
 
 void create_filler(buffer *buf, u8 fill, int size) {
 	if (!buf || size < 1) return;
+
 	if (buf->data) free(buf->data);
 	memset(buf, 0, sizeof(buffer));
 
@@ -75,16 +81,41 @@ void create_filler(buffer *buf, u8 fill, int size) {
 	memset(buf->data, fill, buf->size);
 }
 
+void swap_buffer(buffer *buf, int off, int len, int swap) {
+	if (is_empty(buf) || swap <= 1 || off > buf->size - swap) return;
+
+	if (off < 0) off = 0;
+	if (len < 1) len = buf->size;
+	if (off+len > buf->size) len = buf->size - off;
+
+	len -= len % swap;
+	if (len <= 0) return;
+
+	u8 *temp = malloc(swap);
+	int i, j;
+	for (i = off; i < off+len; i += swap) {
+		memcpy(temp, buf->data + i, swap);
+		for (j = 0; j < swap; j++) buf->data[i+j] = temp[swap-j-1];
+	}
+	free(temp);
+}
+
+void add_byte(buffer *buf, u8 x) {
+	buf->data = realloc(buf->data, ++buf->size);
+	buf->data[buf->size - 1] = x;
+}
+
 void read_array(buffer *array, char **str, int n_strs) {
 	if (!array || !str || n_strs < 1) return;
+	if (array->name) free(array->name);
 	if (array->data) free(array->data);
 	memset(array, 0, sizeof(buffer));
 
-	int *set = NULL;
 	int i, j, len = 0, mode = 0;
 	for (i = 0; i < n_strs; i++) {
 		if (!str[i]) continue;
 
+		int dg_left = 2, digit = 0, byte = 0;
 		for (j = 0; str[i][j]; j++) {
 			char c = str[i][j];
 			if (c < ' ' || c > '~') continue;
@@ -92,53 +123,46 @@ void read_array(buffer *array, char **str, int n_strs) {
 				mode = !mode;
 				continue;
 			}
-			int d = 0;
+
 			if (!mode) {
-				if (c >= '0' && c <= '9')
-					d = c - '0';
-				else if (c >= 'A' && c <= 'F')
-					d = c - 'A' + 0xa;
-				else if (c >= 'a' && c <= 'f')
-					d = c - 'a' + 0xa;
-				else
-					continue;
+				int sub = 0;
+				if (c >= '0' && c <= '9') sub = '0';
+				if (c >= 'A' && c <= 'F') sub = 'A' - 0xa;
+				if (c >= 'a' && c <= 'f') sub = 'a' - 0xa;
+				if (!sub) continue;
+
+				digit = c - sub;
+				dg_left--;
 			}
-			else d = c;
-			set = realloc(set, ++len * sizeof(int));
-			set[len-1] = d;
+			else {
+				digit = c;
+				dg_left = 0;
+			}
+			byte <<= 4;
+			byte |= digit;
+
+			if (dg_left <= 0) {
+				add_byte(array, byte);
+				byte = 0;
+				dg_left = 2;
+			}
 		}
+		if (mode && i < n_strs-1) add_byte(array, ' ');
+		if (!mode && dg_left == 1) add_byte(array, byte);
 	}
-
-	u8 *p = NULL;
-	int resize = 1;
-	for (i = 0; i < len; i++) {
-		if (resize) {
-			array->data = realloc(array->data, ++array->size);
-			p = &array->data[array->size-1];
-			*p = 0;
-		}
-
-		if (set[i] < 0x10) resize = !resize;
-		else resize = 1;
-
-		*p <<= 4;
-		*p |= set[i];
-	}
-
-	free(set);
 }
 
 void apply_buffer(buffer *dst, buffer *src, int dst_pos, int src_pos, int len, int insert) {
 	if (!dst || !src || (!dst->data && !src->data) ||
 		(dst->size < 1 && src->size < 1) || src_pos >= src->size) return;
 
-	if (len < 1) len = src->size;
+	if (src_pos < 0) src_pos = 0;
+	if (len < 1) len = src->size - src_pos;
 	if (dst_pos < -len) dst_pos = -len;
 	if (dst_pos > dst->size) dst_pos = dst->size;
-	if (src_pos < 0) src_pos = 0;
 
 	if (insert) {
-		dst_pos = 0;
+		if (dst_pos < 0) dst_pos = 0;
 		dst->data = realloc(dst->data, dst->size + len);
 		if (dst_pos < dst->size) {
 			memmove(dst->data + dst_pos + len, dst->data + dst_pos, dst->size - dst_pos);
@@ -147,17 +171,17 @@ void apply_buffer(buffer *dst, buffer *src, int dst_pos, int src_pos, int len, i
 	}
 	else {
 		if (dst_pos < 0) {
-			dst->size -= dst_pos;
-			dst->data = realloc(dst->data, dst->size);
+			src_pos = -dst_pos;
+			if (src_pos > src->size) return;
 			dst_pos = 0;
 		}
 		if (dst_pos + len > dst->size) {
-			dst->size = dst_pos + len;
-			dst->data = realloc(dst->data, dst->size);
+			len = dst->size - dst_pos;
+			if (len < 1) return;
 		}
 	}
 
-	memcpy(src->data + src_pos, dst->data + dst_pos, len);
+	memcpy(dst->data + dst_pos, src->data + src_pos, len);
 }
 
 void remove_buffer(buffer *buf, int off, int len) {
@@ -180,7 +204,7 @@ void remove_buffer(buffer *buf, int off, int len) {
 }
 
 void search_buffer(buffer *results, buffer *buf, buffer *term) {
-	if (results == NULL || is_empty(buf) ||
+	if (!results || is_empty(buf) ||
 		is_empty(term) || term->size > buf->size) return;
 
 	close_buffer(results);
@@ -193,31 +217,41 @@ void search_buffer(buffer *results, buffer *buf, buffer *term) {
 		if (j == term->size) {
 			res = realloc(res, ++count * sizeof(int));
 			res[count-1] = i;
+			printf("%#x\n", i);
 		}
 	}
+	printf("\nTotal results: %d\n\n", count);
 
 	results->data = (u8*)res;
-	results->size = count * 4;
+	results->size = count * sizeof(int);
 }
 
 void diff_buffer(buffer *results, buffer *a, buffer *b) {
-	if (results == NULL ||
-		is_empty(a) || is_empty(b)) return;
+	if (!results || is_empty(a) || is_empty(b)) return;
+
+	close_buffer(results);
 
 	int sz = a->size < b->size ? a->size : b->size;
-	int i, diff_idx = 0, *diff = (int*)results->data;
-	create_filler(results, 0, sz * sizeof(int));
+	int i, *diff = NULL, count = 0;
 	for (i = 0; i < sz; i++) {
-		if (a->data[i] == b->data[i]) diff[diff_idx++] = i;
+		if (a->data[i] == b->data[i]) continue;
+
+		diff = realloc(diff, ++count * sizeof(int));
+		diff[count-1] = i;
+		printf("%#x\n", i);
 	}
+	printf("\nTotal results: %d\n", count);
+
+	results->data = (u8*)diff;
+	results->size = count * sizeof(int);
 }
 
 #ifndef _WIN32_
+	#define PRINT_HL printf("\x1b[7;40m")
+	#define PRINT_HL_END printf("\x1b[0m")
+#else
 	#define PRINT_HL
 	#define PRINT_HL_END
-#else
-	#define PRINT_HL printf("\x1b[7;40m");
-	#define PRINT_HL_END printf("\x1b[0m");
 #endif
 
 void view_buffer(buffer *b, int off, int len, buffer *offsets) {
@@ -245,7 +279,7 @@ void view_buffer(buffer *b, int off, int len, buffer *offsets) {
 	char *blank = calloc(50, 1);
 	memset(blank, ' ', 48);
 
-	int hl_idx = 0, old_idx = 0, is_hl = !is_empty(offsets);
+	int hl_idx = 0, old_idx = 0;
 	int i = 0, idx, mode = 0, hl = 0, row_end;
 	int *offs = offsets ? (int*)offsets->data : NULL;
 	u8 *p = NULL;
@@ -255,8 +289,8 @@ void view_buffer(buffer *b, int off, int len, buffer *offsets) {
 		row_end = i >= ((len-1) & ~0xf) ?
 			((len-1) & 0xf) : 0xf;
 
-		if (offsets && is_hl && hl_idx < offsets->size &&
-		 idx == offs[hl_idx]) {
+		if (offsets && hl_idx < offsets->size / sizeof(int) &&
+		  idx == offs[hl_idx]) {
 			PRINT_HL;
 			hl = 1;
 			hl_idx++;
@@ -292,15 +326,15 @@ void view_buffer(buffer *b, int off, int len, buffer *offsets) {
 	free(blank);
 }
 
-char *options = "nNpifFcCrsSdv";
+char *options = "nNwpifFcCrsSdv";
 // argument type requirements (used in reverse order)
 // one digit per argument (multiple digits per command)
 // 0 = end, 1 = string, 2 = input file, 3 = number, 4 = byte array
 // +8 if optional
 int arg_reqs[] = {
-	0xc1, 0xbb1, 0x432, 0x432,
-	0xb332, 0xb332, 0xbb232, 0xbb232,
-	0x332, 0x42, 0x42, 0x922, 0xabb2
+	0xc1, 0xbb1, 0xbb32, 0x432, 0x432, // -n, -N, -w, -p, -i
+	0xb332, 0xb332, 0xbb232, 0xbb232, // -f, -F, -c, -C
+	0xb32, 0x42, 0x42, 0x922, 0xabb2 // -r, -s, -S, -d, -v
 };
 
 void close_args(void ***args_ref, int n_args, int mode) {
@@ -330,6 +364,8 @@ char *usage_str = "Usage:\n"
 	"     [byte data...]\n"
 	"  -N: Create file of size\n"
 	"     [new size] [fill byte]\n"
+	"  -w: Swap bytes in file\n"
+	"     <bytes per swap> [offset] [size]\n"
 	"  -p: Replace/patch bytes at offset\n"
 	"     <offset> <byte data...>\n"
 	"  -i: Insert bytes at offset\n"
@@ -343,7 +379,7 @@ char *usage_str = "Usage:\n"
 	"  -C: Copy (insert) data from another file\n"
 	"     <offset> <src file> [src offset] [size]\n"
 	"  -r: Remove data from file\n"
-	"     <offset> <size>\n"
+	"     <offset> [size]\n"
 	"  -s: Search for byte array (optional output)\n"
 	"     <byte data...>\n"
 	"  -S: Search for byte array (optional replace)\n"
@@ -369,8 +405,10 @@ int main(int argc, char **argv) {
 		return 2;
 	}
 
+	// This block of code will read command-line arguments and interpret them according to the specified option.
+	// Once processed, the arguments are placed in a separate list to be used by the selected mode of operation.
 	int a = 0, reqs = arg_reqs[mode], n_args = 0;
-	void **args = NULL;
+	void **args = NULL; // list of args (not always pointers)
 	for (i = 0; i < 8; i++) {
 		a = reqs & 0xf;
 		reqs >>= 4;
@@ -380,7 +418,7 @@ int main(int argc, char **argv) {
 			if (a & 8) break;
 			else {
 				printf("Not enough arguments to power %s\n", argv[1]);
-				if (args) free(args);
+				close_args(&args, n_args, mode);
 				return 3;
 			}
 		}
@@ -404,7 +442,9 @@ int main(int argc, char **argv) {
 		else if (a == 3) {
 			int n = memcmp(argv[i+2], "0x", 2) ?
 				atoi(argv[i+2]) : strtol(argv[i+2], NULL, 16);
-			args[n_args] = (void*)n;
+			// Fancy way of saying args[n_args] = n, but should be platform independent
+			args[n_args] = NULL;
+			memcpy(&args[n_args], &n, sizeof(int));
 		}
 		else if (a == 4) {
 			args[n_args] = calloc(1, sizeof(buffer));
@@ -416,8 +456,10 @@ int main(int argc, char **argv) {
 
 	char msg[1024] = {0}, *str = NULL, c;
 	buffer *buf = NULL, temp = {0}, replace = {0};
+	char *ptr = NULL;
 	u8 byte = 0;
 	int off = 0, len = 0, sz, *res = NULL;
+
 	switch (mode) {
 	case 0: // Create new file with byte array
 		if (n_args > 1) buf = args[1];
@@ -425,47 +467,66 @@ int main(int argc, char **argv) {
 		buf->name = strdup(args[0]);
 		save_buffer(buf);
 		break;
+
 	case 1: // Create file with fill
-		if (n_args > 2) byte = (int)args[2];
-		if (n_args > 1) create_filler(&temp, byte, (int)args[1]);
+		if (n_args > 2) byte = *((u8*)&args[2]);
+		if (n_args > 1) create_filler(&temp, byte, *((int*)&args[1]));
 		temp.name = strdup(args[0]);
 		save_buffer(&temp);
 		break;
-	case 2: // Replace data
-		apply_buffer(args[0], args[2], (int)args[1], 0, 0, 0);
+
+	case 2: // Swap bytes of data
+		if (n_args > 3) len = *((int*)&args[3]);
+		if (n_args > 2) off = *((int*)&args[2]);
+		swap_buffer(args[0], off, len, *((int*)&args[1]));
 		save_buffer(args[0]);
 		break;
-	case 3: // Insert data
-		apply_buffer(args[0], args[2], (int)args[1], 0, 0, 1);
+		
+	case 3: // Replace data
+		apply_buffer(args[0], args[2], *((int*)&args[1]), 0, 0, 0);
 		save_buffer(args[0]);
 		break;
-	case 4: // Fill (pave over) data
-		if (n_args > 3) byte = (u8)args[3];
-		create_filler(&temp, byte, (int)args[2]);
-		apply_buffer(args[0], &temp, (int)args[1], 0, 0, 0);
-		break;
-	case 5: // Fill (insert into) data
-		if (n_args > 3) byte = (u8)args[3];
-		create_filler(&temp, byte, (int)args[2]);
-		apply_buffer(args[0], &temp, (int)args[1], 0, 0, 1);
-		break;
-	case 6: // Copy (pave over) data
-		if (n_args > 4) len = (int)args[4];
-		if (n_args > 3) off = (int)args[3];
-		apply_buffer(args[0], args[2], (int)args[1], off, len, 0);
+
+	case 4: // Insert data
+		apply_buffer(args[0], args[2], *((int*)&args[1]), 0, 0, 1);
 		save_buffer(args[0]);
 		break;
-	case 7: // Copy (insert into) data
-		if (n_args > 4) len = (int)args[4];
-		if (n_args > 3) off = (int)args[3];
-		apply_buffer(args[0], args[2], (int)args[1], off, len, 1);
+
+	case 5: // Fill (pave over) data
+		if (n_args > 3) byte = *((u8*)&args[3]);
+		create_filler(&temp, byte, *((int*)&args[2]));
+		apply_buffer(args[0], &temp, *((int*)&args[1]), 0, 0, 0);
 		save_buffer(args[0]);
 		break;
-	case 8: // Remove data from file
-		remove_buffer(args[0], (int)args[1], (int)args[2]);
+
+	case 6: // Fill (insert into) data
+		if (n_args > 3) byte = *((u8*)&args[3]);
+		create_filler(&temp, byte, *((int*)&args[2]));
+		apply_buffer(args[0], &temp, *((int*)&args[1]), 0, 0, 1);
 		save_buffer(args[0]);
 		break;
-	case 9: // Search data for array (optional file output)
+
+	case 7: // Copy (pave over) data
+		if (n_args > 4) len = *((int*)&args[4]);
+		if (n_args > 3) off = *((int*)&args[3]);
+		apply_buffer(args[0], args[2], *((int*)&args[1]), off, len, 0);
+		save_buffer(args[0]);
+		break;
+
+	case 8: // Copy (insert into) data
+		if (n_args > 4) len = *((int*)&args[4]);
+		if (n_args > 3) off = *((int*)&args[3]);
+		apply_buffer(args[0], args[2], *((int*)&args[1]), off, len, 1);
+		save_buffer(args[0]);
+		break;
+
+	case 9: // Remove data from file
+		if (n_args > 2) len = *((int*)&args[2]);
+		remove_buffer(args[0], *((int*)&args[1]), len);
+		save_buffer(args[0]);
+		break;
+
+	case 10: // Search data for array (optional file output)
 		search_buffer(&temp, args[0], args[1]);
 		if (!temp.size) break;
 		printf("File to save results (optional)\n> ");
@@ -476,7 +537,8 @@ int main(int argc, char **argv) {
 			save_buffer(&temp);
 		}
 		break;
-	case 10: // Search data for array (optional replace)
+
+	case 11: // Search data for array (optional replace)
 		search_buffer(&temp, args[0], args[1]);
 		if (!temp.size) break;
 		printf("Replace results with array (optional)\n> ");
@@ -485,40 +547,45 @@ int main(int argc, char **argv) {
 		if (!strlen(msg)) break;
 
 		sz = ((buffer*)args[1])->size;
-		read_array(&replace, (char**)(&msg), 1);
+		ptr = &msg[0];
+		read_array(&replace, &ptr, 1);
 		if (replace.size != sz) {
 			str = replace.size < sz ? "smaller" : "larger";
-			printf("Note: replacement array is %s than search array\n"
-				"\tThis will result in a %s file. Continue? [y/n]: ", str, str);
+			printf("Note: replacement array is %s than search array.\n"
+				"This will result in a %s file. Continue? [y/n]: ", str, str);
 			c = getchar();
 			if (c != 'Y' && c != 'y') break;
 		}
 
-		res = (int*)temp.data;
-		for (i = 0; i < temp.size; i += sizeof(int)) {
-			remove_buffer(args[0], res[i], sz);
-			apply_buffer(args[0], &replace, res[i], 0, 0, 1);
+		len = replace.size - sz;
+		for (i = 0, ptr = temp.data; ptr < (char*)(temp.data + temp.size); i++, ptr += sizeof(int)) {
+			off = *((int*)ptr) + (i * len);
+			remove_buffer(args[0], off, sz);
+			apply_buffer(args[0], &replace, off, 0, 0, 1);
 		}
+		save_buffer(args[0]);
 		break;
-	case 11: // Find differences in two files
+
+	case 12: // Find differences in two files
 		diff_buffer(&temp, args[0], args[1]);
 		if (!temp.size) break;
-		printf("File to save results (optional)\n> ");
-		fgets(msg, 1024, stdin);
-		strip(msg);
-		if (strlen(msg)) {
-			temp.name = strdup(msg);
+
+		if (n_args > 2) {
+			temp.name = strdup(args[2]);
 			save_buffer(&temp);
 		}
 		break;
-	case 12: // View part of or the whole file
-		if (n_args > 1) off = (int)args[1];
-		if (n_args > 2) len = (int)args[2];
+
+	case 13: // View part of or the whole file
+		if (n_args > 1) off = *((int*)&args[1]);
+		if (n_args > 2) len = *((int*)&args[2]);
 		if (n_args > 3) buf = args[3];
 		view_buffer(args[0], off, len, buf);
 		break;
 	}
 
+	close_buffer(&temp);
+	close_buffer(&replace);
 	close_args(&args, n_args, mode);
 	return 0;
 }
