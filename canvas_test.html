@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width">
+
+    <title>Canvas Test</title>
+
+    <link rel="stylesheet" href="">
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <style>
+		html, body {
+			width: 100%;
+			height: 100%;
+			margin: 0px;
+			border: 0;
+			overflow: hidden;
+			display: block;
+		}
+    </style>
+  </head>
+
+  <body onload="load_page()">
+    <canvas id="canv" style="position:absolute; left:0px; top:0px;"
+      onmousemove="mmove(event)" onmousedown="mdown(event)" onmouseup="mup(event)">
+    </canvas>
+  </body>
+
+  <script>
+
+var down = false;
+
+var ctx;
+
+function mdown(e) {
+	down = true;
+
+	var x = ctx.clientX;
+	var y = ctx.clientY;
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	draw(x, y);
+}
+
+function mup(e) {
+	down = false;
+}
+
+function mmove(e) {
+	if (down == true) draw(e.clientX, e.clientY);
+}
+
+function draw(x, y) {
+	ctx.strokeStyle = "black";
+	ctx.lineWidth = "2";
+	ctx.lineTo(x, y);
+	ctx.stroke();
+}
+
+function load_page() {
+	ctx = document.getElementById("canv").getContext("2d");
+	ctx.canvas.width = window.innerWidth;
+	ctx.canvas.height = window.innerHeight;
+}
+
+  </script>
+</html>
