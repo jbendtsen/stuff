@@ -485,7 +485,6 @@ int main(int argc, char **argv) {
 	else if (out_base < 0) { // output string
 		int buf_sz = 0;
 		u8 *buf = NULL;
-		char *arg = NULL;
 		for (i = 2; i < argc; i++) {
 			char *str = convert_base(argv[i], in_base, 16);
 			if (!str) continue;
