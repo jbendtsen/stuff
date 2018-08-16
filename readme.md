@@ -7,11 +7,21 @@ This repository is made of a collection of small and occasionally useful tools, 
 
 A list of each file and its significance & purpose.
 
-* buftool.cpp
-	- A nifty command-line tool that lets you read, write, edit and do other related things with memory from running processes
-	- It can run under Windows and Linux (and hopefully other Unix-based systems)
+* canvas_test.html
+	- An example of using a 2D drawing context in JavaScript
 * dll_info.c
-	- A handy command-line tool that displays information about DLL/EXE/Other PE files with an additional search mode
+	- A handy command-line tool that displays information about DLL/EXE/Other PE files with an additional search function
+* generate.c
+	- Tone generator, capable of generating:
+		- Sine waves
+		- Square waves
+		- Sawtooth waves
+		- Triangle waves
+		- White noise
+* hexed.c
+	- A command-line driven hex editor
+* play_url.html
+	- Takes a file from an input url, then plays the file as if it were 8-bit PCM
 * vc.c
 	- A number base converter without conventional integer limits
 	- Can convert to and from any base from 2 to 36
