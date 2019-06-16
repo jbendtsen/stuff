@@ -1,3 +1,9 @@
+/*
+	spacetab - A text file converter for tabs, spaces and line-endings
+		By default, it converts every file in the current directory with the given settings
+		WARNING: this tool will corrupt any binary file it encounters
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -135,21 +141,19 @@ void convertFile(Entry *e, int spt, int spMode, int lnMode) {
 			}
 		}
 
-		if (lnMode == TO_DOS || lnMode == TO_UNIX) {
-			int wasCr = i > 0 && in.data[i-1] == '\r';
-			if (lnMode == TO_DOS) {
-				if (in.data[i] == '\n' && !wasCr) {
-					appendSection(&out, &in, start, i - 1);
-					appendString(&out, "\r\n");
-					start = i + 1;
-				}
+		int wasCr = i > 0 && in.data[i-1] == '\r';
+		if (lnMode == TO_DOS) {
+			if (in.data[i] == '\n' && !wasCr) {
+				appendSection(&out, &in, start, i - 1);
+				appendString(&out, "\r\n");
+				start = i + 1;
 			}
-			else if (lnMode == TO_UNIX) {
-				if (in.data[i] == '\n' && wasCr) {
-					appendSection(&out, &in, start, i - 2);
-					appendString(&out, "\n");
-					start = i + 1;
-				}
+		}
+		else if (lnMode == TO_UNIX) {
+			if (in.data[i] == '\n' && wasCr) {
+				appendSection(&out, &in, start, i - 2);
+				appendString(&out, "\n");
+				start = i + 1;
 			}
 		}
 
@@ -173,41 +177,51 @@ void convertFile(Entry *e, int spt, int spMode, int lnMode) {
 	free(out.data);
 }
 
-void iterate(char *directory, int recursive, int spt, int spMode, int lnMode) {
-	Entry *list = NULL;
-	int n_items = 0;
+int createEntry(Entry *e, char *dirName, char *name) {
+	if (!e || !dirName || !name)
+		return -1;
 
+	char *full = malloc(strlen(dirName) + 1 + strlen(name) + 1);
+	sprintf(full, "%s/%s", dirName, name);
+
+	struct stat info = {0};
+	int res = stat(full, &info);
+	if (res < 0) {
+		free(full);
+		return -2;
+	}
+
+	e->name = strdup(name);
+	e->fullName = full;
+
+	e->type = TYPE_OTHER;
+	e->size = 0;
+	if (info.st_mode & S_IFREG) {
+		e->type = TYPE_FILE;
+		e->size = info.st_size;
+	}
+	if (info.st_mode & S_IFDIR)
+		e->type = TYPE_DIR;
+
+	return 0;
+}
+
+void iterate(char *directory, int recursive, int spt, int spMode, int lnMode) {
 	DIR *handle = opendir(directory);
 	struct dirent *cur;
-	struct stat info = {0};
+
+	Entry *list = malloc(sizeof(Entry));
+	int n_items = 0;
 
 	while ((cur = readdir(handle)) != NULL) {
 		if (!strcmp(cur->d_name, ".") || !strcmp(cur->d_name, ".."))
 			continue;
 
-		char *full = malloc(strlen(directory) + 1 + strlen(cur->d_name) + 1);
-		sprintf(full, "%s/%s", directory, cur->d_name);
-
-		memset(&info, 0, sizeof(struct stat));
-		int res = stat(full, &info);
-		if (res < 0)
+		if (createEntry(&list[n_items], directory, cur->d_name) < 0)
 			continue;
 
-		int type = TYPE_OTHER;
-		int size = 0;
-		if (info.st_mode & S_IFREG) {
-			type = TYPE_FILE;
-			size = info.st_size;
-		}
-		if (info.st_mode & S_IFDIR)
-			type = TYPE_DIR;
-
-		list = realloc(list, (n_items + 1) * sizeof(Entry));
-		list[n_items].name = strdup(cur->d_name);
-		list[n_items].fullName = full;
-		list[n_items].type = type;
-		list[n_items].size = size;
 		n_items++;
+		list = realloc(list, (n_items + 1) * sizeof(Entry));
 	}
 
 	int i;
@@ -242,6 +256,9 @@ void printHelp() {
 		   "    Recursively locates files to convert\n"
 		   "  -d <directory>:\n"
 		   "    Specifies the directory to start converting files from\n"
+		   "  -f <filename>:\n"
+		   "    Specifies a single file in the given directory to convert,\n"
+		   "      instead of every file inside that directory. Cancels the -R flag.\n"
 		   "  -n <length>:\n"
 		   "    Specifies the number of spaces per tab (default: 4)\n"
 		   "  -t:\n"
@@ -257,6 +274,7 @@ void printHelp() {
 int main(int argc, char **argv) {
 	int recursive = 0;
 	char *directory = ".";
+	char *fileName = NULL;
 	int spacesPerTab = 4;
 	int spaceMode = NO_SC;
 	int lineMode = NO_LC;
@@ -278,6 +296,12 @@ int main(int argc, char **argv) {
 					break;
 
 				directory = argv[++i];
+				break;
+			case 'f':
+				if (i >= argc-1)
+					break;
+
+				fileName = argv[++i];
 				break;
 			case 'n':
 				if (i >= argc-1)
@@ -302,13 +326,23 @@ int main(int argc, char **argv) {
 
 	if (spaceMode == NO_SC && lineMode == NO_LC) {
 		printf("No conversion specified\n"
-		       "Use -t to convert tabs to spaces, -s for the opposite\n"
-			   " OR -w to convert Unix line-endings to DOS, -u for the opposite\n");
+		       "Use -t to convert spaces to tabs, -s for the opposite,\n"
+			   "    -w to convert Unix line-endings to DOS, -u for the opposite\n");
 		return 0;
 	}
 
 	char *path = absolute_path(directory, 1);
-	iterate(path, recursive, spacesPerTab, spaceMode, lineMode);
+	if (fileName) {
+		Entry file = {0};
+		if (createEntry(&file, path, fileName) >= 0) {
+			convertFile(&file, spacesPerTab, spaceMode, lineMode);
+			free(file.name);
+			free(file.fullName);
+		}
+	}
+	else {
+		iterate(path, recursive, spacesPerTab, spaceMode, lineMode);
+	}
 
 	free(path);
 	return 0;

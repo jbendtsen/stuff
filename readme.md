@@ -24,6 +24,7 @@ A list of each file and its significance & purpose.
 	- Takes a file from an input url, then plays the file as if it were 8-bit PCM
 * spacetab.c
 	- A text file converter for spaces <-> tabs, DOS <-> Unix line-endings
+	- Can iterate through a directory recursively or non-recursively
 * vc.c
 	- A number base converter without conventional integer limits
 	- Can convert to and from any base from 2 to 36
