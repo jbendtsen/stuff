@@ -25,6 +25,9 @@ A list of each file and its significance & purpose.
 * spacetab.c
 	- A text file converter for spaces <-> tabs, DOS <-> Unix line-endings
 	- Can iterate through a directory recursively or non-recursively
+* structflt.cpp
+	- Takes a data structure, applies data to it and prints the result with formatting
+	- Takes data from either STDIN or a file
 * vc.c
 	- A number base converter without conventional integer limits
 	- Can convert to and from any base from 2 to 36
