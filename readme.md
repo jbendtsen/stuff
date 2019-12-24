@@ -9,6 +9,8 @@ A list of each file and its significance & purpose.
 
 * canvas_test.html
 	- An example of using a 2D drawing context in JavaScript
+* cube.cpp
+	- A simple OpenGL demo of a rotating cube
 * dll_info.c
 	- A handy command-line tool that displays information about DLL/EXE/Other PE files with an additional search function
 * generate.c
