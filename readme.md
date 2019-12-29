@@ -7,6 +7,8 @@ This repository is made of a collection of small and occasionally useful tools, 
 
 A list of each file and its significance & purpose.
 
+* bin2obj.c
+	- Converts 3D model files from Need For Speed Underground 2 into Wavefront .OBJ
 * canvas_test.html
 	- An example of using a 2D drawing context in JavaScript
 * cube.cpp
