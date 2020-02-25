@@ -22,6 +22,8 @@ A list of each file and its significance & purpose.
 		- Sawtooth waves
 		- Triangle waves
 		- White noise
+* github-show-all.html
+	- A naive GitHub repository scraper which gets every file that is easily accessible and pastes it into the HTML
 * hexed.c
 	- A command-line driven hex editor
 * play_url.html

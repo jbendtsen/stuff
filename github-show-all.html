@@ -1,0 +1,107 @@
+<html>
+	<head>
+		<style>
+
+.code {
+	font-family: Monaco, monospace;
+	white-space: pre-wrap;
+}
+
+		</style>
+		<script>
+
+var owner = "";
+var repo = "";
+
+function clear(elem) {
+	var child = elem.lastElementChild;
+	while (child) {
+		elem.removeChild(child);
+		child = elem.lastElementChild;
+	}
+}
+
+function appendMessage(msg, className) {
+	var p = document.createElement("p");
+	p.innerHTML = msg;
+	if (className) p.className = className;
+	document.getElementById("contents").appendChild(p);
+}
+
+function httpGetAsync(url, callback, data) {
+    var request = new XMLHttpRequest();
+    request.onreadystatechange = function() { 
+        if (request.readyState == 4 && request.status == 200)
+            callback(request.responseText, data);
+    }
+    request.open("GET", url, true); // true for asynchronous 
+    request.send(null);
+}
+
+function printFile(response, name) {
+	try {
+		var obj = JSON.parse(response);
+		appendMessage(name);
+		appendMessage(atob(obj.content), "code");
+	}
+	catch(err) {
+		appendMessage(err);
+	}
+}
+
+function recvTree(response) {
+	try {
+		var obj = JSON.parse(response);
+		var i;
+		for (i = 0; i < obj.tree.length; i++) {
+			if (obj.tree[i].type === "tree") {
+				httpGetAsync("https://api.github.com/repos/" + owner + "/" + repo + "/git/trees/" + obj.tree[i].sha, recvTree);
+			}
+			else if (obj.tree[i].type === "blob") {
+				httpGetAsync(obj.tree[i].url, printFile, obj.tree[i].path);
+			}
+		}
+	}
+	catch(err) {
+		appendMessage(err);
+	}
+}
+
+function recvUrl(response) {
+	try {
+		var obj = JSON.parse(response);
+		httpGetAsync(obj[0].commit.tree.url, recvTree);
+	}
+	catch(err) {
+		appendMessage(err);
+	}
+}
+
+/*
+GPUOpen-LibrariesAndSDKs
+HelloD3D12
+*/
+
+function get_all() {
+	owner = document.getElementById("owner").value;
+	repo = document.getElementById("repo").value;
+
+	var div = document.getElementById("contents");
+	clear(div);
+
+	httpGetAsync("https://api.github.com/repos/" + owner + "/" + repo + "/commits", recvUrl);
+}
+
+		</script>
+	</head>
+	<body>
+		<h1>GitHub Repository - Git All Da Files</h1>
+		<input id="owner" type="text" size="100" placeholder="Owner" />
+		<br />
+		<input id="repo" type="text" size="100" placeholder="Repository" />
+		<br />
+		<button onclick="get_all()">Git it</button>
+		<br />
+		<div id="contents"></div>
+	</body>
+</html>
