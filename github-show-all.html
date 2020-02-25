@@ -28,6 +28,7 @@ function appendMessage(msg, className) {
 	document.getElementById("contents").appendChild(p);
 }
 
+// "Inspired" (stolen) from this StackOverflow answer: https://stackoverflow.com/a/4033310
 function httpGetAsync(url, callback, data) {
     var request = new XMLHttpRequest();
     request.onreadystatechange = function() { 
