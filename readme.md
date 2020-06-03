@@ -26,6 +26,8 @@ A list of each file and its significance & purpose.
 	- A naive GitHub repository scraper which gets every file that is easily accessible and pastes it into the HTML
 * hexed.c
 	- A command-line driven hex editor
+* mandelbrot.html
+	- Mandelbrot set simulator using Three.js/WebGL
 * play_url.html
 	- Takes a file from an input url, then plays the file as if it were 8-bit PCM
 * spacetab.c

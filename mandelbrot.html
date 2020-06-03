@@ -1,0 +1,172 @@
+<!--
+Mandelbrot Set Explorer
+Controls:
+	WASD keys = move up/left/down/right,
+	up & down arrow keys = zoom in/out
+	left & right arrow keys = rotate left/right
+-->
+<html>
+	<head>
+		<style>
+body {
+	margin: 0;
+}
+#c {
+	width: 100%;
+	height: 100%;
+	cursor: none;
+}
+		</style>
+		<script src="https://threejs.org/build/three.js"></script>
+		<script>
+
+const fragmentShader = `
+uniform vec2 iResolution;
+
+uniform vec2 iPosition;
+uniform float iScale;
+uniform float iRotation;
+
+const int max_iterations = 100;
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+	vec2 screen = fragCoord / iResolution.y;
+	screen -= vec2(0.5 * iResolution.x / iResolution.y, 0.5);
+
+	float r = iRotation;
+	vec2 uv = screen * mat2(cos(r), -sin(r), sin(r), cos(r));
+	uv = (uv / iScale) + iPosition;
+
+	float a = 0.0;
+	float b = 0.0;
+
+	int n = max_iterations;
+	for (int i = 0; i < max_iterations; i++) {
+		if (a*a + b*b > 4.0) {
+			n = i;
+			break;
+		}
+
+		float temp = a*a - b*b + uv.x;
+		b = 2.0 * a * b + uv.y;
+		a = temp;
+	}
+
+	float lum = float(n) / float(max_iterations);
+	vec3 col = vec3(lum, lum, lum);
+
+	// Output to screen
+	fragColor = vec4(col,1.0);
+}
+ 
+void main() {
+	mainImage(gl_FragColor, gl_FragCoord.xy);
+}
+`;
+
+var x = -0.25;
+var y = 0.0;
+var scale = 0.4;
+var rotation = 0.0;
+
+var move_x =     {vel: 0.0, max_vel: 1.0, accel: 0.1};
+var move_y =     {vel: 0.0, max_vel: 1.0, accel: 0.1};
+var move_scale = {vel: 0.0, max_vel: 4.0, accel: 0.05};
+var move_rot =   {vel: 0.0, max_vel: 2.0, accel: 0.1};
+
+var held = [];
+
+function move(ctrl, plus, minus) {
+	dir = plus ? 1 : 0;
+	dir -= minus ? 1 : 0;
+
+	if (dir == 0) {
+		if (ctrl.vel > 0.001)
+			dir = -1;
+		else if (ctrl.vel < -0.001)
+			dir = 1;
+		else {
+			dir = 0;
+			ctrl.vel = 0.0;
+		}
+	}
+
+	vel = ctrl.vel + dir * ctrl.accel;
+	if (dir > 0)
+		vel = vel < ctrl.max_vel ? vel : ctrl.max_vel;
+	else
+		vel = vel > -ctrl.max_vel ? vel : -ctrl.max_vel;
+
+	ctrl.vel = vel;
+}
+
+function simulate() {
+	move(move_x, held["d"], held["a"]);
+	move(move_y, held["w"], held["s"]);
+	move(move_rot, held["ArrowRight"], held["ArrowLeft"]);
+	move(move_scale, held["ArrowUp"], held["ArrowDown"]);
+
+	scale += move_scale.vel * 0.01 * scale;
+	rotation += move_rot.vel * 0.01;
+
+	rot_x = Math.cos(rotation);
+	rot_y = Math.sin(rotation);
+	x_vel = move_x.vel * rot_x - move_y.vel * rot_y;
+	y_vel = move_x.vel * rot_y + move_y.vel * rot_x;
+
+	x += x_vel * 0.01 / scale;
+	y += y_vel * 0.01 / scale;
+}
+
+function main() {
+	canvas = document.querySelector('#c');
+	renderer = new THREE.WebGLRenderer({canvas});
+	renderer.autoClearColor = false;
+
+	camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
+	scene = new THREE.Scene();
+	plane = new THREE.PlaneBufferGeometry(2, 2);
+
+	uniforms = {
+		iResolution: { value: new THREE.Vector2() },
+		iPosition:   { value: new THREE.Vector2() },
+		iScale:      { value: 0.0 },
+		iRotation:   { value: 0.0 }
+    };
+	material = new THREE.ShaderMaterial({fragmentShader, uniforms});
+	scene.add(new THREE.Mesh(plane, material));
+
+	function render() {
+		simulate();
+
+		canvas = renderer.domElement;
+		uniforms.iResolution.value.set(canvas.width, canvas.height);
+		uniforms.iPosition.value.set(x, y);
+		uniforms.iScale.value = scale;
+		uniforms.iRotation.value = rotation;
+
+		width = canvas.clientWidth;
+		height = canvas.clientHeight;
+		if (canvas.width !== width || canvas.height !== height)
+			renderer.setSize(width, height, false);
+
+		renderer.render(scene, camera);
+		requestAnimationFrame(render);
+	}
+
+	requestAnimationFrame(render);
+}
+
+function keyDown(event) {
+	held[event.key] = true;
+}
+function keyUp(event) {
+	held[event.key] = false;
+}
+
+		</script>
+	</head>
+	<body onload="main()" onkeydown="keyDown(event)" onkeyup="keyUp(event)">
+		<canvas id="c"></canvas>
+	</body>
+</html>
