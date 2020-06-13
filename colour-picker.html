@@ -1,0 +1,129 @@
+<html>
+	<head>
+		<title>Colour Viewer</title>
+		<style>
+h1 {
+	margin: 1em;
+	text-align: center;
+}
+#spacer {
+	display: inline-block;
+	width: 25%;
+	height: 1px;
+}
+#main {
+	display: inline-table;
+	width: 50%;
+	height: 50%;
+}
+#main td {
+	width: 50%;
+}
+textarea {
+	width: 100%;
+	height: 100%;
+	font-size: 1.5em;
+}
+#output {
+	display: table;
+	width: 100%;
+	height: 100%;
+	border-spacing: 0 0;
+	font-family: monospace;
+	font-size: 1.5em;
+}
+		</style>
+		<script>
+var old_colour_count = 0;
+
+function setCell(cell, colour) {
+	cell.innerHTML = colour;
+
+	sp = Math.floor(colour.length / 3);
+	r = parseInt(colour.charAt(1), 16);
+	g = parseInt(colour.charAt(1 + sp), 16);
+	b = parseInt(colour.charAt(1 + sp + sp), 16);
+
+	fore = "#000";
+	if (r + g + b < 18)
+		fore = "#fff";
+
+	cell.style.color = fore;
+}
+
+function adjustColourTable(colours) {
+	table = document.getElementById("output");
+
+	if (colours.length != old_colour_count) {
+		body = document.createElement("tbody");
+		for (i in colours) {
+			row = document.createElement("tr");
+			row.style.backgroundColor = colours[i];
+			cell = document.createElement("td");
+			setCell(cell, colours[i]);
+			row.appendChild(cell);
+			body.appendChild(row);
+		}
+		table.replaceChild(body, table.tBodies[0]);
+	}
+	else {
+		for (i in colours) {
+			if (!table.rows[i])
+				break;
+
+			table.rows[i].style.backgroundColor = colours[i];
+			setCell(table.rows[i].cells[0], colours[i]);
+		}
+	}
+
+	old_colour_count = colours.length;
+}
+
+function textChanged() {
+	text = document.getElementById("text").value;
+	colours = []
+	str = "";
+	in_colour = false;
+
+	for (idx in text) {
+		c = text[idx]
+		if (!in_colour && c == '#') {
+			in_colour = true;
+			str = "#";
+			continue;
+		}
+
+		d = parseInt(c, 16);
+		if (in_colour && isNaN(d)) {
+			if (str.length > 1)
+				colours.push(str);
+
+			in_colour = c == '#';
+			continue;
+		}
+
+		if (in_colour)
+			str += c;
+	}
+
+	if (in_colour && str.length > 1)
+		colours.push(str);
+
+	adjustColourTable(colours);
+}
+		</script>
+	</head>
+	<body onload="textChanged()">
+		<h1>Colour Viewer</h1>
+		<div id="spacer"></div>
+		<table id="main"><tbody><tr>
+			<td id="left">
+				<textarea id="text" oninput="textChanged()">&num;101010&NewLine;&num;808080&NewLine;&num;f0f0f0</textarea>
+			</td>
+			<td id="right">
+				<table id="output"><tbody></tbody></table>
+			</td>
+		</tr></tbody></table>
+		<p id="debug"></p>
+	</body>
+</html>

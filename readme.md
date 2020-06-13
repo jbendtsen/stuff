@@ -11,6 +11,8 @@ A list of each file and its significance & purpose.
 	- Converts 3D model files from Need For Speed Underground 2 into Wavefront .OBJ
 * canvas_test.html
 	- An example of using a 2D drawing context in JavaScript
+* colour-picker.html
+	- Dynamic colour picker for lists of RGB colours
 * cube.cpp
 	- A simple OpenGL demo of a rotating cube
 * dll_info.c

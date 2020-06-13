@@ -17,7 +17,7 @@ body {
 	cursor: none;
 }
 		</style>
-		<script src="https://threejs.org/build/three.js"></script>
+		<script src="three.js"></script>
 		<script>
 
 const fragmentShader = `
@@ -107,7 +107,7 @@ function simulate() {
 	move(move_scale, held["ArrowUp"], held["ArrowDown"]);
 
 	scale += move_scale.vel * 0.01 * scale;
-	rotation += move_rot.vel * 0.01;
+	rotation -= move_rot.vel * 0.01;
 
 	rot_x = Math.cos(rotation);
 	rot_y = Math.sin(rotation);
