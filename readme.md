@@ -38,6 +38,8 @@ A list of each file and its significance & purpose.
 * structflt.cpp
 	- Takes a data structure, applies data to it and prints the result with formatting
 	- Takes data from either STDIN or a file
+* tetris.rb
+	- Another Tetris clone in Ruby with Gosu
 * triangle.c
 	- A linear, single-function example of drawing a triangle with Vulkan
 * vc.c
