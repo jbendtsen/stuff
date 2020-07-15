@@ -17,6 +17,8 @@ A list of each file and its significance & purpose.
 	- A simple OpenGL demo of a rotating cube
 * dll_info.c
 	- A handy command-line tool that displays information about DLL/EXE/Other PE files with an additional search function
+* enum-process-regions.cpp
+	- Prints a list of memory regions in a Windows process
 * generate.c
 	- Tone generator, capable of generating:
 		- Sine waves
