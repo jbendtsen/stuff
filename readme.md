@@ -40,6 +40,8 @@ A list of each file and its significance & purpose.
 * structflt.cpp
 	- Takes a data structure, applies data to it and prints the result with formatting
 	- Takes data from either STDIN or a file
+* struct-parser.cpp
+	- Rudimentary C/C++ struct parser. Supports inline/external structs and unions.
 * tetris.rb
 	- Another Tetris clone in Ruby with Gosu
 * triangle.c
