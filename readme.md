@@ -34,6 +34,8 @@ A list of each file and its significance & purpose.
 	- Mandelbrot set simulator using Three.js/WebGL
 * play_url.html
 	- Takes a file from an input url, then plays the file as if it were 8-bit PCM
+* sdl2-viewer.c
+	- Example of an image viewer with scale & panning in SDL2
 * spacetab.c
 	- A text file converter for spaces <-> tabs, DOS <-> Unix line-endings
 	- Can iterate through a directory recursively or non-recursively
