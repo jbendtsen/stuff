@@ -326,8 +326,8 @@ int main(int argc, char **argv) {
 
 	if (spaceMode == NO_SC && lineMode == NO_LC) {
 		printf("No conversion specified\n"
-		       "Use -t to convert spaces to tabs, -s for the opposite,\n"
-			   "    -w to convert Unix line-endings to DOS, -u for the opposite\n");
+		       "For help, type\n"
+		       "%s -h\n", argv[0]);
 		return 0;
 	}
 
