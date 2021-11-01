@@ -53,5 +53,7 @@ A list of each file and its significance & purpose.
 * vc.c
 	- A number base converter without conventional integer limits
 	- Can convert to and from any base from 2 to 36
+* wii-channel-launcher.c
+	- Super barebones channel launcher for the Wii. Useful if your Wii is modded and you can't be bothered finding batteries for a Wiimote!
 * zextract.c
 	- A filesystem extractor for Ocarina of Time & Majora's Mask
