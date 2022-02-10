@@ -55,5 +55,7 @@ A list of each file and its significance & purpose.
 	- Can convert to and from any base from 2 to 36
 * wii-channel-launcher.c
 	- Super barebones channel launcher for the Wii. Useful if your Wii is modded and you can't be bothered finding batteries for a Wiimote!
+* wordle.py
+	- Simple version of Wordle that runs in any terminal that supports ANSI escape codes
 * zextract.c
 	- A filesystem extractor for Ocarina of Time & Majora's Mask
