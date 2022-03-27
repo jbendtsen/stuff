@@ -55,6 +55,8 @@ A list of each file and its significance & purpose.
 	- Can convert to and from any base from 2 to 36
 * wii-channel-launcher.c
 	- Super barebones channel launcher for the Wii. Useful if your Wii is modded and you can't be bothered finding batteries for a Wiimote!
+* wii-file-copier.c
+	- Simple Wii homebrew app which copies files and folders between an SD card and a USB stick
 * wordle.py
 	- Simple version of Wordle that runs in any terminal that supports ANSI escape codes
 * zextract.c
