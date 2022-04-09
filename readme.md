@@ -48,6 +48,8 @@ A list of each file and its significance & purpose.
 	- Rudimentary C/C++ struct parser. Supports inline/external structs and unions.
 * tetris.rb
 	- Another Tetris clone in Ruby with Gosu
+* textify.c
+	- Prints binary files as text for easier post-processing with tools such as grep
 * triangle.c
 	- A linear, single-function example of drawing a triangle with Vulkan
 * vc.c
