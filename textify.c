@@ -11,15 +11,16 @@ void print_help(const char *prog)
 		"Convert binary to text, for easier post-processing with eg. grep\n"
 		"Usage: %s [options]\n"
 		"Options:\n"
-		"   -d\n"
-		"   --decimal\n"
-		"      Print offsets in decimal\n"
 		"   -x\n"
 		"   --hex\n"
-		"      Print offsets in hexadecimal\n"
+		"      Print data as hex\n"
+		"      Overrides the --sparse and --replace options\n"
 		"   -s\n"
 		"   --sparse\n"
 		"      Skip non-ascii sections of the input\n"
+		"   -a <base>\n"
+		"   --addr-base <base>\n"
+		"      Print addresses in the base <base>\n"
 		"   -b <every,from>\n"
 		"   --break <every,from>\n"
 		"      Insert a newline every <every> bytes from offset <from>\n"
@@ -39,10 +40,10 @@ void print_help(const char *prog)
 	, prog);
 }
 
-void get_two_numbers(char *str, int *first, int *second)
+void get_numbers(char *str, int *first, int *second)
 {
 	*first = 0;
-	*second = 0;
+	if (second) *second = 0;
 
 	int *n = first;
 	for (int i = 0; str[i]; i++) {
@@ -51,7 +52,10 @@ void get_two_numbers(char *str, int *first, int *second)
 			*n += str[i] - '0';
 		}
 		else {
-			n = second;
+			if (second)
+				n = second;
+			else
+				break;
 		}
 	}
 }
@@ -64,6 +68,7 @@ int main(int argc, char **argv)
 	int should_skip_non_ascii = 0;
 	int nl_every = 0;
 	int nl_from = 0;
+	int hexdump = 0;
 	char replace_ch = '\n';
 
 	for (int i = 1; i < argc; i++) {
@@ -79,18 +84,20 @@ int main(int argc, char **argv)
 				print_help(argv[0]);
 				return 0;
 			}
-			else if (!strcmp(opt, "decimal")) {
-				offset_base = 10;
-			}
 			else if (!strcmp(opt, "hex")) {
-				offset_base = 16;
+				hexdump = 1;
 			}
 			else if (!strcmp(opt, "sparse")) {
 				should_skip_non_ascii = 1;
 			}
 			else if (i < argc-1) {
+				if (!strcmp(opt, "addr-base")) {
+					get_numbers(argv[i+1], &offset_base, NULL);
+					if (offset_base <= 0)
+						offset_base = 16;
+				}
 				if (!strcmp(opt, "break")) {
-					get_two_numbers(argv[i+1], &nl_every, &nl_from);
+					get_numbers(argv[i+1], &nl_every, &nl_from);
 				}
 				else if (!strcmp(opt, "replace")) {
 					replace_ch = argv[i+1][0];
@@ -109,18 +116,20 @@ int main(int argc, char **argv)
 			print_help(argv[0]);
 			return 0;
 		}
-		else if (c == 'd') {
-			offset_base = 10;
-		}
 		else if (c == 'x') {
-			offset_base = 16;
+			hexdump = 1;
 		}
 		else if (c == 's') {
 			should_skip_non_ascii = 1;
 		}
 		else if (i < argc-1) {
-			if (c == 'b') {
-				get_two_numbers(argv[i+1], &nl_every, &nl_from);
+			if (c == 'a') {
+				get_numbers(argv[i+1], &offset_base, NULL);
+				if (offset_base <= 0)
+					offset_base = 16;
+			}
+			else if (c == 'b') {
+				get_numbers(argv[i+1], &nl_every, &nl_from);
 			}
 			else if (c == 'r') {
 				replace_ch = argv[i+1][0];
@@ -183,16 +192,24 @@ int main(int argc, char **argv)
 
 			for (; i < sz && len < out_end; i++) {
 				int use_breaks = nl_every > 0 && nl_every >= nl_from;
-				if (in_ptr[i] < ' ' || in_ptr[i] > '~') {
-					if (!was_non_ascii) {
-						out[len++] = replace_ch;
-						should_print_off = !use_breaks;
-						was_non_ascii = should_skip_non_ascii;
+				int non_ascii = !hexdump && (in_ptr[i] < ' ' || in_ptr[i] > '~');
+
+				if (!non_ascii) {
+					if (hexdump) {
+						const char *hexlut = "0123456789abcdef";
+						out[len++] = hexlut[(in_ptr[i] >> 4) & 0xf];
+						out[len++] = hexlut[in_ptr[i] & 0xf];
+						out[len++] = ' ';
 					}
-				}
-				else {
-					out[len++] = (char)in_ptr[i];
+					else {
+						out[len++] = (char)in_ptr[i];
+					}
 					was_non_ascii = 0;
+				}
+				else if (!was_non_ascii) {
+					out[len++] = replace_ch;
+					should_print_off = !use_breaks;
+					was_non_ascii = should_skip_non_ascii;
 				}
 
 				u64 point = offset + (u64)i + (u64)nl_from;
@@ -202,7 +219,7 @@ int main(int argc, char **argv)
 					i++;
 					break;
 				}
-				if (in_ptr[i] < ' ' || in_ptr[i] > '~') {
+				if (non_ascii) {
 					i++;
 					break;
 				}
