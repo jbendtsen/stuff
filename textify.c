@@ -18,13 +18,16 @@ void print_help(const char *prog)
 		"   -s\n"
 		"   --sparse\n"
 		"      Skip non-ascii sections of the input\n"
-		"   -a <base>\n"
-		"   --addr-base <base>\n"
-		"      Print addresses in the base <base>\n"
+		"   -a <base,digits>\n"
+		"   --addr-base <base,digits>\n"
+		"      Print addresses in the base <base> with a minimum of <digits> digits\n"
+		"      eg. -a 10\n"
+		"          -a 16,8\n"
 		"   -b <every,from>\n"
 		"   --break <every,from>\n"
 		"      Insert a newline every <every> bytes from offset <from>\n"
 		"      eg. -b 16,7\n"
+		"          -b 32\n"
 		"      Defaults to 0,0\n"
 		"   -r <character>\n"
 		"   --replace <character>\n"
@@ -65,6 +68,7 @@ int main(int argc, char **argv)
 	FILE *input = stdin;
 	char *in_name = NULL;
 	int offset_base = 0;
+	int offset_digits = 0;
 	int should_skip_non_ascii = 0;
 	int nl_every = 0;
 	int nl_from = 0;
@@ -92,7 +96,7 @@ int main(int argc, char **argv)
 			}
 			else if (i < argc-1) {
 				if (!strcmp(opt, "addr-base")) {
-					get_numbers(argv[i+1], &offset_base, NULL);
+					get_numbers(argv[i+1], &offset_base, &offset_digits);
 					if (offset_base <= 0)
 						offset_base = 16;
 				}
@@ -124,7 +128,7 @@ int main(int argc, char **argv)
 		}
 		else if (i < argc-1) {
 			if (c == 'a') {
-				get_numbers(argv[i+1], &offset_base, NULL);
+				get_numbers(argv[i+1], &offset_base, &offset_digits);
 				if (offset_base <= 0)
 					offset_base = 16;
 			}
@@ -180,11 +184,14 @@ int main(int argc, char **argv)
 						if (c > '9') c += 'a' - '9' - 1;
 						number[n_digits++] = c;
 					}
+					for (int j = 0; j < offset_digits - n_digits; j++)
+						out[len++] = '0';
 					while (--n_digits >= 0)
 						out[len++] = number[n_digits];
 				}
 				else {
-					out[len++] = '0';
+					for (int j = 0; j < offset_digits; j++)
+						out[len++] = '0';
 				}
 				out[len++] = ' ';
 				should_print_off = 0;
