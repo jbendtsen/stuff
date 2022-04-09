@@ -49,7 +49,7 @@ A list of each file and its significance & purpose.
 * tetris.rb
 	- Another Tetris clone in Ruby with Gosu
 * textify.c
-	- Prints binary files as text for easier post-processing with tools such as grep
+	- Formats binary files as text for easier post-processing
 * triangle.c
 	- A linear, single-function example of drawing a triangle with Vulkan
 * vc.c

@@ -5,7 +5,8 @@
 
 typedef unsigned long long u64;
 
-void print_help(const char *prog) {
+void print_help(const char *prog)
+{
 	fprintf(stderr,
 		"Convert binary to text, for easier post-processing with eg. grep\n"
 		"Usage: %s [options]\n"
@@ -19,14 +20,40 @@ void print_help(const char *prog) {
 		"   -s\n"
 		"   --sparse\n"
 		"      Skip non-ascii sections of the input\n"
+		"   -b <every,from>\n"
+		"   --break <every,from>\n"
+		"      Insert a newline every <every> bytes from offset <from>\n"
+		"      eg. -b 16,7\n"
+		"      Defaults to 0,0\n"
+		"   -r <character>\n"
+		"   --replace <character>\n"
+		"      Replace non-ascii characters with <character>\n"
+		"      Defaults to \\n (newline)\n"
 		"   -i <file>\n"
 		"   --input <file>\n"
-		"      Specify input file.\n"
-		"      Defaults to stdin.\n"
+		"      Specify input file\n"
+		"      Defaults to stdin\n"
 		"   -h\n"
 		"   --help\n"
 		"      Print this help menu\n"
 	, prog);
+}
+
+void get_two_numbers(char *str, int *first, int *second)
+{
+	*first = 0;
+	*second = 0;
+
+	int *n = first;
+	for (int i = 0; str[i]; i++) {
+		if (str[i] >= '0' && str[i] <= '9') {
+			*n *= 10;
+			*n += str[i] - '0';
+		}
+		else {
+			n = second;
+		}
+	}
 }
 
 int main(int argc, char **argv)
@@ -35,6 +62,9 @@ int main(int argc, char **argv)
 	char *in_name = NULL;
 	int offset_base = 0;
 	int should_skip_non_ascii = 0;
+	int nl_every = 0;
+	int nl_from = 0;
+	char replace_ch = '\n';
 
 	for (int i = 1; i < argc; i++) {
 		int len = strlen(argv[i]);
@@ -59,9 +89,16 @@ int main(int argc, char **argv)
 				should_skip_non_ascii = 1;
 			}
 			else if (i < argc-1) {
-				if (!strcmp(opt, "input")) {
+				if (!strcmp(opt, "break")) {
+					get_two_numbers(argv[i+1], &nl_every, &nl_from);
+				}
+				else if (!strcmp(opt, "replace")) {
+					replace_ch = argv[i+1][0];
+				}
+				else if (!strcmp(opt, "input")) {
 					in_name = argv[i+1];
 				}
+				i++;
 			}
 
 			continue;
@@ -82,11 +119,21 @@ int main(int argc, char **argv)
 			should_skip_non_ascii = 1;
 		}
 		else if (i < argc-1) {
-			if (c == 'i') {
+			if (c == 'b') {
+				get_two_numbers(argv[i+1], &nl_every, &nl_from);
+			}
+			else if (c == 'r') {
+				replace_ch = argv[i+1][0];
+			}
+			else if (c == 'i') {
 				in_name = argv[i+1];
 			}
+			i++;
 		}
 	}
+
+	if (nl_every > 0)
+		nl_from = nl_every - (nl_from % nl_every);
 
 	if (in_name)
 		input = fopen(in_name, "rb");
@@ -100,22 +147,20 @@ int main(int argc, char **argv)
 	char out[BUF_SIZE * 16];
 	char number[64];
 
-	int sz = BUF_SIZE;
+	char *in_ptr = in;
 	int n_digits = 0;
 	int should_print_off = 1;
 	const int out_end = BUF_SIZE * 15;
 
 	u64 offset = 0;
 
-	while (sz == BUF_SIZE) {
-		sz = fread(in, 1, 1024, input);
-		if (sz <= 0)
-			break;
-
+	int sz = fread(in, 1, BUF_SIZE, input);
+	while (sz > 0) {
 		int len = 0;
 		int was_non_ascii = 0;
 
-		for (int i = 0; i < sz && len < out_end; i++) {
+		int i = 0;
+		for (; i < sz && len < out_end; i++) {
 			if (should_print_off && offset_base) {
 				u64 off = offset + (u64)i;
 				if (off > 0) {
@@ -133,26 +178,50 @@ int main(int argc, char **argv)
 					out[len++] = '0';
 				}
 				out[len++] = ' ';
+				should_print_off = 0;
 			}
 
 			for (; i < sz && len < out_end; i++) {
-				if (in[i] < ' ' || in[i] > '~') {
-					if (was_non_ascii)
-						continue;
+				int use_breaks = nl_every > 0 && nl_every >= nl_from;
+				if (in_ptr[i] < ' ' || in_ptr[i] > '~') {
+					if (!was_non_ascii) {
+						out[len++] = replace_ch;
+						should_print_off = !use_breaks;
+						was_non_ascii = should_skip_non_ascii;
+					}
+				}
+				else {
+					out[len++] = (char)in_ptr[i];
+					was_non_ascii = 0;
+				}
 
+				u64 point = offset + (u64)i + (u64)nl_from;
+				if (use_breaks && point > 0 && (point+1) % (u64)nl_every == 0) {
 					out[len++] = '\n';
 					should_print_off = 1;
-					was_non_ascii = should_skip_non_ascii;
+					i++;
 					break;
 				}
-				out[len++] = (char)in[i];
-				was_non_ascii = 0;
+				if (in_ptr[i] < ' ' || in_ptr[i] > '~') {
+					i++;
+					break;
+				}
 			}
+			i--; // spicy
 		}
 
 		fwrite(out, 1, len, stdout);
 
-		offset += (u64)sz;
+		if (i < sz) {
+			in_ptr = &in[i];
+			sz -= i;
+		}
+		else {
+			in_ptr = in;
+			sz = fread(in, 1, BUF_SIZE, input);
+		}
+
+		offset += (u64)i;
 	}
 
 	putchar('\n');
