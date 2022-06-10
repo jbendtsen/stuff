@@ -4,6 +4,7 @@ _This repository is made of a collection of small and occasionally useful tools,
 | File                     | Description 
 | ------------------------ | -----------
 | android-colors.c         | Native android app which displays colours based on touch input. Uses EGL & GLES. Self-contained, doesn't use the standard glue code.
+| autotriangulator.html    | Interactive demo that creates triangle meshes from 2D polygons
 | bin2obj.c                | Converts 3D model files from Need For Speed Underground 2 into Wavefront .OBJ
 | bluenrg2-flasher.cpp     | Flashes a ROM to a BlueNRG2 development board (also provides a console)
 | canvas_test.html         | An example of using a 2D drawing context in JavaScript

@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+		<meta charset="UTF-8">
+		<title>Autotrianglator</title>
+		<!--<meta name="viewport" content="width=device-width, initial-scale=1">-->
+		<style>
+body {
+	display: flex;
+	justify-content: center;
+	margin: 0;
+}
+h1 {
+	margin-top: 0.5em;
+}
+canvas {
+	border: 1px solid black;
+}
+#container {
+	max-width: 724px;
+}
+#shapes {
+	margin-top: 8px;
+	width: 714px;
+	height: 120px;
+}
+		</style>
+		<script>
+"use strict";
+
+var canvas = null;
+var ctx = null;
+var held_vert = null;
+var last_shape = 0;
+var skip_tris = [];
+var shapes = [[[100, 100], [150, 100], [150, 150]], [[220, 120], [270, 120], [270, 170]]];
+var shape_colors = [];
+
+// combine and sort, so that it can be looked up more easily
+function make_triangle(p1, p2, p3) {
+	var tri = [p1, p2, p3];
+	tri.sort((a, b) => { return a - b; });
+	return tri;
+}
+
+function make_edge(p1, p2) {
+	var edge = [0, 0];
+	if (p1 < p2) {
+		edge[0] = p1;
+		edge[1] = p2;
+	}
+	else {
+		edge[0] = p2;
+		edge[1] = p1;
+	}
+	return edge;
+}
+
+// The area of a triangle can be computed as 0.5*((x1-x3)*(y2-y3)-(y1-y3)*(x2-x3))
+// A side affect of this area formula is that if the triangle is counter-clockwise, the result is negative.
+// This function creates a triangle between the given point and each of the three edges (AB, BC, CA),
+//   and if each resulting area is negative or each area is positive,
+//   then the point must be inside the original triangle.
+function triangle_contains(px, py, x1, y1, x2, y2, x3, y3) {
+	var d1 = (px - x2)*(y1 - y2) - (py - y2)*(x1 - x2);
+	var d2 = (px - x3)*(y2 - y3) - (py - y3)*(x2 - x3);
+	var d3 = (px - x1)*(y3 - y1) - (py - y1)*(x3 - x1);
+	return ((d1 < 0) == (d2 < 0)) && ((d2 < 0) == (d3 < 0));
+}
+
+function check_edge_intersection(x1, y1, x2, y2, x3, y3, x4, y4) {
+	var dxa = x2 - x1;
+	var dya = y2 - y1;
+
+	x3 -= x1;
+	y3 -= y1;
+	x4 -= x1;
+	y4 -= y1;
+
+	var xr1 = ((x3 * dxa) - (y3 * -dya));
+	var yr1 = ((x3 * -dya) + (y3 * dxa));
+	var xr2 = ((x4 * dxa) - (y4 * -dya));
+	var yr2 = ((x4 * -dya) + (y4 * dxa));
+
+	if ((yr1 < 0) == (yr2 < 0) || (yr1 > yr2 - 0.001 && yr1 < yr2 + 0.001))
+		return false;
+
+	var x = xr1 - yr1 * ((xr2 - xr1) / (yr2 - yr1));
+	return x > 0 && x < dxa*dxa + dya*dya;
+}
+
+function generate_initial_shape_triangles(shape, collection) {
+	var edges = [make_edge(0, 1)];
+	var lowest = 0;
+
+	for (var j = 1; j < shape.length; j++) {
+		var next = (j+1) % shape.length;
+		edges.push(make_edge(j, next));
+
+		if (shape[j][1] < shape[lowest][1] || (shape[j][1] == shape[lowest][1] && shape[j][0] > shape[lowest][0]))
+			lowest = j;
+	}
+
+	var is_clockwise = false;
+	{
+		let low_prev = (lowest + shape.length-1) % shape.length;
+		let low_next = (lowest + 1) % shape.length;
+		let x1 = shape[lowest][0];
+		let y1 = shape[lowest][1];
+		let x2 = shape[low_prev][0];
+		let y2 = shape[low_prev][1];
+		let x3 = shape[low_next][0];
+		let y3 = shape[low_next][1];
+		is_clockwise = (x1 - x3)*(y2 - y1) < (x1 - x2)*(y3 - y1);
+	}
+
+	for (var j = 0; j < shape.length * (shape.length-2); j++) {
+		var rounds = Math.floor(j / shape.length);
+		var cur = j % shape.length;
+		var next = (j+1 + rounds) % shape.length;
+
+		if (rounds > 0) {
+			let collides = false;
+			for (var e of edges) {
+				if (e[0] != cur && e[0] != next && e[1] != cur && e[1] != next) {
+					var ex1 = shape[e[0]][0];
+					var ey1 = shape[e[0]][1];
+					var ex2 = shape[e[1]][0];
+					var ey2 = shape[e[1]][1];
+					collides = check_edge_intersection(shape[cur][0], shape[cur][1], shape[next][0], shape[next][1], ex1, ey1, ex2, ey2);
+					if (collides)
+						break;
+				}
+			}
+			if (collides)
+				continue;
+		}
+
+		var mid_x = (shape[cur][0] + shape[next][0]) / 2;
+		var mid_y = (shape[cur][1] + shape[next][1]) / 2;
+		var mid_a = shape[next][1] - shape[cur][1];
+		var mid_b = shape[next][0] - shape[cur][0];
+		var mid_c = mid_a * mid_x - mid_b * mid_y;
+
+		var points = [];
+		for (var k = 0; k < shape.length; k++) {
+			if (k == cur || k == next)
+				continue;
+
+			var x = shape[k][0];
+			var y = shape[k][1];
+			var is_clock = mid_a * x - mid_b * y < mid_c;
+			if (is_clock == is_clockwise)
+				points.push(k);
+		}
+
+		// check for points inside any would-be triangle
+		// check if either of the two would-be edges cross any existing edges
+
+		var is_full = false;
+		for (var k = 0; k < points.length; k++) {
+			is_full = collection.length >= shape.length - 2;
+			if (is_full)
+				break;
+
+			var pp = points[k];
+
+			var idx = cur;
+			while (idx != next) {
+				if (idx == pp) {
+					idx = -1;
+					break;
+				}
+				idx = (idx + 1) % shape.length;
+			}
+			if (idx < 0) {
+				//console.log("point covered: " + ps + ", " + pp);
+				continue;
+			}
+
+			var tri = make_triangle(cur, next, pp);
+
+			var exists = false;
+			for (var s of collection) {
+				if (s[0] == tri[0] && s[1] == tri[1] && s[2] == tri[2]) {
+					exists = true;
+					break;
+				}
+			}
+			if (exists) {
+				//console.log("triangle exists: " + tri);
+				continue;
+			}
+
+			var x1 = shape[cur][0];
+			var y1 = shape[cur][1];
+			var x2 = shape[next][0];
+			var y2 = shape[next][1];
+			var x3 = shape[pp][0];
+			var y3 = shape[pp][1];
+
+			var inner = -1;
+			for (var l = 0; l < shape.length; l++) {
+				if (l == cur || l == next || l == pp)
+					continue;
+				
+				if (triangle_contains(shape[l][0], shape[l][1], x1, y1, x2, y2, x3, y3)) {
+					inner = l;
+					break;
+				}
+			}
+			if (inner >= 0) {
+				//console.log("point " + points[l] + " was within " + tri);
+				continue;
+			}
+
+			var e1 = make_edge(cur, pp);
+			var e2 = make_edge(next, pp);
+
+			var e1_exists = false;
+			var e2_exists = false;
+			let collides = 0;
+
+			var edge_idx = 0;
+			for (var e of edges) {
+				var ex1 = shape[e[0]][0];
+				var ey1 = shape[e[0]][1];
+				var ex2 = shape[e[1]][0];
+				var ey2 = shape[e[1]][1];
+
+				if (e[0] == e1[0] && e[1] == e1[1]) {
+					e1_exists = true;
+				}
+				else if (e[0] != e1[0] && e[0] != e1[1] && e[1] != e1[0] && e[1] != e1[1]) {
+					collides = check_edge_intersection(x3, y3, x1, y1, ex1, ey1, ex2, ey2);
+					if (collides) {
+						collides = 1;
+						break;
+					}
+				}
+
+				if (e[0] == e2[0] && e[1] == e2[1]) {
+					e2_exists = true;
+				}
+				else if (e[0] != e2[0] && e[0] != e2[1] && e[1] != e2[0] && e[1] != e2[1]) {
+					collides = check_edge_intersection(x3, y3, x2, y2, ex1, ey1, ex2, ey2);
+					if (collides) {
+						collides = 2;
+						break;
+					}
+				}
+				edge_idx++;
+			}
+			if (collides) {
+				//console.log("edge " + edges[edge_idx] + " intersects " + (collides == 2 ? e2 : e1));
+				continue;
+			}
+
+			collection.push(tri);
+
+			if (!e1_exists)
+				edges.push(e1);
+			if (!e2_exists)
+				edges.push(e2);
+
+			break;
+		}
+
+		if (is_full)
+			break;
+	}
+
+	return is_clockwise;
+}
+
+function attempt_create_triangle(p1, p2, p3, tris, points, is_clockwise) {
+	if (p3 == p1 || p3 == p2)
+		return;
+
+	var x1 = shapes[p1 >> 16][p1 & 0xffff][0];
+	var y1 = shapes[p1 >> 16][p1 & 0xffff][1];
+	var x2 = shapes[p2 >> 16][p2 & 0xffff][0];
+	var y2 = shapes[p2 >> 16][p2 & 0xffff][1];
+	var x3 = shapes[p3 >> 16][p3 & 0xffff][0];
+	var y3 = shapes[p3 >> 16][p3 & 0xffff][1];
+
+	if (is_clockwise != null) {
+		var is_clock = (x1-x3)*(y2-y3) >= (y1-y3)*(x2-x3);
+		if (is_clock != is_clockwise)
+			return;
+	}
+
+	var tri = make_triangle(p1, p2, p3);
+
+	for (var t of tris) {
+		if (t[0] == tri[0] && t[1] == tri[1] && t[2] == tri[2])
+			return;
+
+		var x4 = shapes[t[0] >> 16][t[0] & 0xffff][0];
+		var y4 = shapes[t[0] >> 16][t[0] & 0xffff][1];
+		var x5 = shapes[t[1] >> 16][t[1] & 0xffff][0];
+		var y5 = shapes[t[1] >> 16][t[1] & 0xffff][1];
+		var x6 = shapes[t[2] >> 16][t[2] & 0xffff][0];
+		var y6 = shapes[t[2] >> 16][t[2] & 0xffff][1];
+
+		if (
+			((t[0] != p1 && t[0] != p3 && t[1] != p1 && t[1] != p3) && check_edge_intersection(x1, y1, x3, y3, x4, y4, x5, y5)) ||
+			((t[1] != p1 && t[1] != p3 && t[2] != p1 && t[2] != p3) && check_edge_intersection(x1, y1, x3, y3, x5, y5, x6, y6)) ||
+			((t[2] != p1 && t[2] != p3 && t[0] != p1 && t[0] != p3) && check_edge_intersection(x1, y1, x3, y3, x6, y6, x4, y4)) ||
+			((t[0] != p2 && t[0] != p3 && t[1] != p2 && t[1] != p3) && check_edge_intersection(x2, y2, x3, y3, x4, y4, x5, y5)) ||
+			((t[1] != p2 && t[1] != p3 && t[2] != p2 && t[2] != p3) && check_edge_intersection(x2, y2, x3, y3, x5, y5, x6, y6)) ||
+			((t[2] != p2 && t[2] != p3 && t[0] != p2 && t[0] != p3) && check_edge_intersection(x2, y2, x3, y3, x6, y6, x4, y4))
+		) {
+			return;
+		}
+	}
+
+	for (var p4 of points) {
+		if (p4 == p1 || p4 == p2 || p4 == p3)
+			continue;
+
+		var s4 = p4 >> 16;
+		var x4 = shapes[s4][p4 & 0xffff][0];
+		var y4 = shapes[s4][p4 & 0xffff][1];
+
+		if (triangle_contains(x4, y4, x1, y1, x2, y2, x3, y3))
+			return;
+
+		var p5 = (s4 << 16) | (((p4 & 0xffff) + 1) % shapes[s4].length);
+		if (p5 == p3)
+			continue;
+
+		var x5 = shapes[s4][p5 & 0xffff][0];
+		var y5 = shapes[s4][p5 & 0xffff][1];
+
+		if (
+			(p5 != p1 && check_edge_intersection(x1, y1, x3, y3, x4, y4, x5, y5)) ||
+			(p5 != p2 && check_edge_intersection(x2, y2, x3, y3, x4, y4, x5, y5))
+		) {
+			return;
+		}
+	}
+
+	return tri;
+}
+
+function generate_holey_shape_triangles(shapes, idx, holes, clockwise_list) {
+	var tris = [];
+	var points = [];
+
+	var target_tris = (holes.length-1) * 2 + shapes[idx].length;
+
+	for (var i = 0; i < shapes[idx].length; i++)
+		points.push((idx << 16) | i);
+
+	for (var i = 0; i < holes.length; i++) {
+		target_tris += shapes[holes[i]].length;
+
+		for (var j = 0; j < shapes[holes[i]].length; j++)
+			points.push((holes[i] << 16) | j);
+	}
+
+	var new_edges = [];
+
+	for (var p1 of points) {
+		if (tris.length >= target_tris)
+			break;
+
+		var s = p1 >> 16;
+		var p2 = (s << 16) | (((p1 & 0xffff) + 1) % shapes[s].length);
+
+		var is_clockwise = clockwise_list[s];
+		if (s != idx)
+			is_clockwise = !is_clockwise;
+
+		for (var p3 of points) {
+			var tri = attempt_create_triangle(p1, p2, p3, tris, points, is_clockwise);
+			if (!tri)
+				continue;
+
+			var edges = [make_edge(tri[0], tri[1]), make_edge(tri[1], tri[2]), make_edge(tri[2], tri[0])];
+			for (var e of edges) {
+				var n = e[0] >> 16;
+				if (n == e[1] >> 16) {
+					if ((e[0] & 0xffff) == 0 && (e[1] & 0xffff) == shapes[n].length - 1)
+						continue;
+					if (e[1] - e[0] == 1)
+						continue;
+				}
+				new_edges.push(e);
+			}
+
+			tris.push(tri);
+			break;
+		}
+	}
+
+	for (var e of new_edges) {
+		if (tris.length >= target_tris)
+			break;
+
+		for (var p of points) {
+			var tri = attempt_create_triangle(e[0], e[1], p, tris, points, null);
+			if (!tri)
+				continue;
+
+			tris.push(tri);
+			break;
+		}
+	}
+
+	return tris;
+}
+
+function calculate_triangles() {
+	var all_tris = [];
+	var clockwise_list = [];
+	var holes = [];
+	var holes_index = [];
+	var holes_exist = false;
+
+	skip_tris = [];
+
+	var idx = 0;
+	for (var s of shapes) {
+		var tris = [];
+		var is_clockwise = generate_initial_shape_triangles(s, tris);
+		clockwise_list.push(is_clockwise);
+
+		var shapes_inside = [];
+
+		for (var i = 0; i < shapes.length; i++) {
+			if (i == idx)
+				continue;
+
+			var inside = 0;
+			for (var t of tris) {
+				var x1 = shapes[idx][t[0]][0];
+				var y1 = shapes[idx][t[0]][1];
+				var x2 = shapes[idx][t[1]][0];
+				var y2 = shapes[idx][t[1]][1];
+				var x3 = shapes[idx][t[2]][0];
+				var y3 = shapes[idx][t[2]][1];
+
+				for (var p of shapes[i])
+					inside += triangle_contains(p[0], p[1], x1, y1, x2, y2, x3, y3)
+			}
+
+			if (inside == shapes[i].length) {
+				shapes_inside.push(i);
+				holes_exist = true;
+			}
+		}
+
+		for (var i = 0; i < tris.length; i++) {
+			tris[i][0] |= idx << 16;
+			tris[i][1] |= idx << 16;
+			tris[i][2] |= idx << 16;
+		}
+
+		all_tris.push(tris);
+		holes.push(shapes_inside);
+		holes_index.push(idx);
+
+		idx++;
+	}
+
+	if (!holes_exist)
+		return all_tris;
+
+	holes_index.sort((a, b) => { return holes[a].length - holes[b].length });
+
+	for (var i = 0; i < holes.length; i++) {
+		for (var s of holes[holes_index[i]]) {
+			for (var j = 0; j < holes_index.length; j++) {
+				if (j == holes_index[i])
+					continue;
+
+				var idx = holes[j].indexOf(s);
+				if (idx >= 0)
+					holes[j].splice(idx, 1);
+			}
+		}
+	}
+
+	for (var i = holes.length - 1; i >= 0; i--) {
+		for (var s of holes[holes_index[i]]) {
+			holes[s] = [];
+			skip_tris.push(s);
+		}
+	}
+
+	for (var i = 0; i < shapes.length; i++) {
+		if (!holes[i].length)
+			continue;
+
+		all_tris[i] = generate_holey_shape_triangles(shapes, i, holes[i], clockwise_list);
+
+		for (var s of holes[i])
+			all_tris[s] = [];
+	}
+
+	return all_tris;
+}
+
+function generate_color() {
+	var r = Math.random();
+	var g = Math.random();
+	var b = Math.random();
+	var tr = Math.floor(r * 255.99);
+	var tg = Math.floor(g * 255.99);
+	var tb = Math.floor(b * 255.99);
+	var vr = Math.floor(128 + r * 127.99);
+	var vg = Math.floor(128 + g * 127.99);
+	var vb = Math.floor(128 + b * 127.99);
+	var tri_rgb  = (tr << 16) | (tg << 8) | tb;
+	var vert_rgb = (vr << 16) | (vg << 8) | vb;
+	var text_rgb = ((tr * 0.299 + tg * 0.587 + tb * 0.114) < 128) * 255;
+	text_rgb |= (text_rgb << 16) | (text_rgb << 8);
+
+	return [
+		"#" +  tri_rgb.toString(16).padStart(6, '0'),
+		"#" + vert_rgb.toString(16).padStart(6, '0'),
+		"#" + text_rgb.toString(16).padStart(6, '0')
+	];
+}
+
+function render(timestamp) {
+	const background_color = "#ccc";
+	ctx.fillStyle = background_color;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	var textarea = document.getElementById("shapes");
+
+	var tris = calculate_triangles();
+
+	var shape_str = "[";
+	var first_shape = true;
+	for (var s of shapes) {
+		if (!first_shape)
+			shape_str += ", ";
+		shape_str += "[";
+		var first_point = true;
+		for (var p of s) {
+			if (!first_point)
+				shape_str += ", ";
+			shape_str += "[" + p[0] + ", " + p[1] + "]";
+			first_point = false;
+		}
+		shape_str += "]";
+		first_shape = false;
+	}
+	shape_str += "]";
+	textarea.value = shape_str;
+
+	for (var i = 0; i < shapes.length; i++) {
+		var should_fill = skip_tris.indexOf(i) < 0;
+
+		if (i >= shape_colors.length)
+			shape_colors.push(generate_color());
+
+		var idx = 0;
+		for (var j = 0; j < tris[i].length; j++) {
+			var x1 = shapes[tris[i][j][0] >> 16][tris[i][j][0] & 0xffff][0];
+			var y1 = shapes[tris[i][j][0] >> 16][tris[i][j][0] & 0xffff][1];
+			var x2 = shapes[tris[i][j][1] >> 16][tris[i][j][1] & 0xffff][0];
+			var y2 = shapes[tris[i][j][1] >> 16][tris[i][j][1] & 0xffff][1];
+			var x3 = shapes[tris[i][j][2] >> 16][tris[i][j][2] & 0xffff][0];
+			var y3 = shapes[tris[i][j][2] >> 16][tris[i][j][2] & 0xffff][1];
+			var avg_x = (x1 + x2 + x3) / 3;
+			var avg_y = (y1 + y2 + y3) / 3;
+
+			ctx.fillStyle = shape_colors[i][0];
+			ctx.strokeStyle = shape_colors[i][2];
+			ctx.beginPath();
+			ctx.moveTo(x1, y1);
+			ctx.lineTo(x2, y2);
+			ctx.lineTo(x3, y3);
+			ctx.lineTo(x1, y1);
+
+			if (should_fill) {
+				ctx.fill();
+				ctx.fillStyle = shape_colors[i][2];
+				ctx.fillText("" + idx, avg_x - 3, avg_y + 4);
+			}
+			else {
+				ctx.fillStyle = background_color;
+				ctx.fill();
+			}
+
+			ctx.stroke();
+
+			idx++;
+		}
+
+		var point_color = i == last_shape ? "#ffffff" : shape_colors[i][1];
+
+		for (var j = 0; j < shapes[i].length; j++) {
+			var x = shapes[i][j][0];
+			var y = shapes[i][j][1];
+			ctx.fillStyle = point_color;
+			ctx.fillRect(x - 5, y - 5, 10, 10);
+			ctx.fillStyle = "#000000";
+			ctx.fillText("" + j, x - 3, y + 4);
+		}
+	}
+}
+
+function mouse_down_handler(event) {
+	var x = event.offsetX;
+	var y = event.offsetY;
+
+	var min_distance = -1;
+	var min_dist_shape_idx = 0;
+	var min_dist_vert_idx  = 0;
+
+	for (var i = 0; i < shapes.length; i++) {
+		for (var j = 0; j < shapes[i].length; j++) {
+			var distance = Math.sqrt((shapes[i][j][0]-x)**2 + (shapes[i][j][1]-y)**2);
+			if (min_distance < 0 || distance < min_distance) {
+				min_dist_shape_idx = i;
+				min_dist_vert_idx = j;
+				min_distance = distance;
+			}
+		}
+	}
+
+	held_vert = [min_dist_shape_idx, min_dist_vert_idx];
+	last_shape = min_dist_shape_idx;
+
+	shapes[held_vert[0]][held_vert[1]][0] = event.offsetX;
+	shapes[held_vert[0]][held_vert[1]][1] = event.offsetY;
+
+	window.requestAnimationFrame(render);
+}
+
+function mouse_move_handler(event) {
+	if (!event.buttons)
+		held_vert = null;
+	if (!held_vert)
+		return;
+
+	shapes[held_vert[0]][held_vert[1]][0] = event.offsetX;
+	shapes[held_vert[0]][held_vert[1]][1] = event.offsetY;
+
+	window.requestAnimationFrame(render);
+}
+
+function mouse_up_handler(event) {
+	held_vert = null;
+}
+
+function shuffle_colors() {
+	for (var i = 0; i < shape_colors.length; i++)
+		shape_colors[i] = generate_color();
+
+	window.requestAnimationFrame(render);
+}
+
+function add_shape() {
+	var shape = [];
+	for (var i = 0; i < 3; i++) {
+		var x = Math.floor(Math.random() * canvas.width);
+		var y = Math.floor(Math.random() * canvas.height);
+		shape.push([x, y]);
+	}
+	shapes.push(shape);
+	last_shape = shapes.length - 1;
+
+	window.requestAnimationFrame(render);
+}
+
+function add_vertex() {
+	var x = Math.floor(Math.random() * canvas.width);
+	var y = Math.floor(Math.random() * canvas.height);
+	shapes[last_shape].push([x, y]);
+
+	window.requestAnimationFrame(render);
+}
+
+function cycle_shapes() {
+	var last = shapes.pop();
+	shapes.splice(0, 0, last);
+	window.requestAnimationFrame(render);
+}
+
+function cycle_vertices() {
+	var last = shapes[last_shape].pop();
+	shapes[last_shape].splice(0, 0, last);
+	window.requestAnimationFrame(render);
+}
+
+function on_text_changed(elem) {
+	shapes = eval(elem.value);
+	window.requestAnimationFrame(render);
+}
+
+function init_canvas() {
+	canvas = document.getElementsByTagName("canvas")[0];
+	ctx = canvas.getContext("2d");
+
+	canvas.addEventListener("mousedown", mouse_down_handler);
+	canvas.addEventListener("mousemove", mouse_move_handler);
+	canvas.addEventListener("mouseup", mouse_up_handler);
+
+	window.requestAnimationFrame(render);
+}
+		</script>
+	</head>
+	<body onload="init_canvas();">
+		<div id="container">
+			<h1>Autotrianglator</h1>
+			<canvas width="720px" height="400px"></canvas>
+			<br>
+			<button onclick="shuffle_colors();">Shuffle Colors</button>
+			<button onclick="add_shape();">Add Shape</button>
+			<button onclick="add_vertex();">Add Vertex</button>
+			<button onclick="cycle_shapes();">Cycle Shapes</button>
+			<button onclick="cycle_vertices();">Cycle Vertices</button>
+			<br>
+			<textarea id="shapes" oninput="on_text_changed(this);"></textarea>
+			<br>
+			<p>
+				This demo takes a series of polygons and generates triangles that fit inside them.<br>
+				If one polygon is inside another, it will treat the inner polygon as a hole inside the outer polygon.<br>
+				Vertices can be moved by dragging them or by editing the text beneath the canvas.
+			</p>
+		</div>
+	</body>
+</html>
