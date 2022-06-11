@@ -152,7 +152,7 @@ int init_egl()
 
 void quit_egl()
 {
-    if (app_global.egl.display) {
+	if (app_global.egl.display) {
 		eglMakeCurrent(app_global.egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
 		if (app_global.egl.context)
