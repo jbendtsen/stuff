@@ -1,5 +1,5 @@
 # Stuff
-_This repository is made of a collection of small and occasionally useful tools, each made from a single source file._
+_This repository is a collection of small and occasionally useful tools, each made from a single source file._
 
 | File                     | Description 
 | ------------------------ | -----------

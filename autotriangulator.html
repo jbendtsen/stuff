@@ -3,7 +3,7 @@
 	<head>
 		<meta http-equiv="content-type" content="text/html; charset=UTF-8">
 		<meta charset="UTF-8">
-		<title>Autotrianglator</title>
+		<title>Autotriangulator</title>
 		<!--<meta name="viewport" content="width=device-width, initial-scale=1">-->
 		<style>
 body {
@@ -317,26 +317,22 @@ function attempt_create_triangle(p1, p2, p3, tris, points, is_clockwise) {
 	}
 
 	for (var p4 of points) {
-		if (p4 == p1 || p4 == p2 || p4 == p3)
-			continue;
-
 		var s4 = p4 >> 16;
 		var x4 = shapes[s4][p4 & 0xffff][0];
 		var y4 = shapes[s4][p4 & 0xffff][1];
 
-		if (triangle_contains(x4, y4, x1, y1, x2, y2, x3, y3))
-			return;
+		if (p4 != p1 && p4 != p2 && p4 != p3) {
+			if (triangle_contains(x4, y4, x1, y1, x2, y2, x3, y3))
+				return;
+		}
 
 		var p5 = (s4 << 16) | (((p4 & 0xffff) + 1) % shapes[s4].length);
-		if (p5 == p3)
-			continue;
-
 		var x5 = shapes[s4][p5 & 0xffff][0];
 		var y5 = shapes[s4][p5 & 0xffff][1];
 
 		if (
-			(p5 != p1 && check_edge_intersection(x1, y1, x3, y3, x4, y4, x5, y5)) ||
-			(p5 != p2 && check_edge_intersection(x2, y2, x3, y3, x4, y4, x5, y5))
+			(p4 != p1 && p4 != p3 && p5 != p1 && p5 != p3 && check_edge_intersection(x1, y1, x3, y3, x4, y4, x5, y5)) ||
+			(p4 != p2 && p4 != p3 && p5 != p2 && p5 != p3 && check_edge_intersection(x2, y2, x3, y3, x4, y4, x5, y5))
 		) {
 			return;
 		}
@@ -710,7 +706,7 @@ function init_canvas() {
 	</head>
 	<body onload="init_canvas();">
 		<div id="container">
-			<h1>Autotrianglator</h1>
+			<h1>Autotriangulator</h1>
 			<canvas width="720px" height="400px"></canvas>
 			<br>
 			<button onclick="shuffle_colors();">Shuffle Colors</button>
