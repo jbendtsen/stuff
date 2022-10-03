@@ -186,8 +186,8 @@ public class TextWindowView extends View {
         return super.onTouchEvent(event);
     }
 
-	@Override
-	protected void onDraw(Canvas canvas) {
+    @Override
+    protected void onDraw(Canvas canvas) {
         Paint paint = new Paint();
         paint.setTextSize(textSize);
         paint.setColor(textColor);
@@ -340,5 +340,5 @@ public class TextWindowView extends View {
 
         oldPosX = posX;
         oldPosY = posY;
-	}
+    }
 }
