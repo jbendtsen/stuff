@@ -23,6 +23,7 @@ _This repository is made of a collection of small and occasionally useful tools,
 | struct-parser.cpp        | Rudimentary C/C++ struct parser. Supports inline/external structs and unions.
 | tetris.rb                | Another Tetris clone in Ruby with Gosu
 | textify.c                | Formats binary files as text for easier post-processing
+| TextWindowView.java      | A multi-line, scrollable text window for Android
 | triangle.c               | A linear, single-function example of drawing a triangle with Vulkan
 | vc.c                     | A number base converter without conventional integer limits. Can convert to and from any base from 2 to 36.
 | wii-channel-launcher.c   | Super barebones channel launcher for the Wii. Useful if your Wii is modded and you can't be bothered finding batteries for a Wiimote!
