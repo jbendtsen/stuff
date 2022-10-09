@@ -35,6 +35,7 @@ public class TextWindowView extends View {
     float textSize = 48.0f;
     float lineSpacing = 56.0f;
     final Object lock = new Object();
+    static final int defaultLog2Size = 14;
 
     public TextWindowView(Context ctx) {
         super(ctx);
@@ -47,7 +48,6 @@ public class TextWindowView extends View {
 
     void init(Context ctx) {
         this.ctx = ctx;
-        allocateBufferLog2(14);
     }
 
     public void allocateBufferLog2(int n) {
@@ -104,6 +104,9 @@ public class TextWindowView extends View {
     }
 
     public void addText(CharSequence text) {
+        if (buffer == null)
+            allocateBufferLog2(defaultLog2Size);
+
         int[] data = text.codePoints().toArray();
         int len = Math.min(data.length, buffer.length - 1);
         if (!allowWrap)
@@ -301,7 +304,7 @@ public class TextWindowView extends View {
                     String s = new String(scratch, 0, distance);
                     canvas.drawText(s, -posX + 8.0f, y + lineSpacing, paint);
                 }
-                if (pos >= end) {
+                if (pos >= end && i >= nLines / 2) {
                     tailWasVisible = true;
                     break;
                 }
@@ -311,7 +314,8 @@ public class TextWindowView extends View {
                 pos = start;
             }
 
-            scrollPos = (float)(viewPos - head) / (float)(tail - head);
+            if (tail > head)
+                scrollPos = (float)(viewPos - head) / (float)(tail - head);
         }
 
         if (touchMoving || significantFling) {
@@ -323,7 +327,7 @@ public class TextWindowView extends View {
             color = (int)((float)color * scrollAlpha);
             color = (color << 24) | (scrollColor & 0xffffff);
             paint.setColor(color);
-            
+
             final float scrollFrac = 0.1f;
             float scrollY = scrollPos * (windowHeight * (1.0f - scrollFrac));
             canvas.drawRect(
