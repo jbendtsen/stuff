@@ -18,6 +18,12 @@ void print_help(const char *prog)
 		"   -s\n"
 		"   --sparse\n"
 		"      Skip non-ascii sections of the input\n"
+		"   -c\n"
+		"   --collapse16\n"
+		"      Collapse 16-bit strings into 8-bit strings\n"
+		"      Only works if each 16-bit character in the intended string\n"
+		"       has a code-point of less than 256\n"
+		"      Only works with --hex disabled\n"
 		"   -a <base,digits>\n"
 		"   --addr-base <base,digits>\n"
 		"      Print addresses in the base <base> with a minimum of <digits> digits\n"
@@ -73,6 +79,7 @@ int main(int argc, char **argv)
 	int nl_every = 0;
 	int nl_from = 0;
 	int hexdump = 0;
+	int collapse_16 = 0;
 	char replace_ch = '\n';
 
 	for (int i = 1; i < argc; i++) {
@@ -84,7 +91,10 @@ int main(int argc, char **argv)
 
 		if (len > 2 && argv[i][1] == '-') {
 			char *opt = argv[i] + 2;
-			if (!strcmp(opt, "help")) {
+			if (!strcmp(opt, "collapse16")) {
+				collapse_16 = 1;
+			}
+			else if (!strcmp(opt, "help")) {
 				print_help(argv[0]);
 				return 0;
 			}
@@ -116,7 +126,10 @@ int main(int argc, char **argv)
 		}
 
 		char c = argv[i][1];
-		if (c == 'h') {
+		if (c == 'c') {
+			collapse_16 = 1;
+		}
+		else if (c == 'h') {
 			print_help(argv[0]);
 			return 0;
 		}
@@ -171,6 +184,7 @@ int main(int argc, char **argv)
 	while (sz > 0) {
 		int len = 0;
 		int was_non_ascii = 0;
+		int was_actually_non_ascii = 0;
 
 		int i = 0;
 		for (; i < sz && len < out_end; i++) {
@@ -201,6 +215,11 @@ int main(int argc, char **argv)
 				int use_breaks = nl_every > 0 && nl_every >= nl_from;
 				int non_ascii = !hexdump && (in_ptr[i] < ' ' || in_ptr[i] > '~');
 
+				int was_ascii = !was_actually_non_ascii;
+				was_actually_non_ascii = in_ptr[i] < ' ' || in_ptr[i] > '~';
+
+				int is_collapse = collapse_16 && !hexdump && in_ptr[i] == 0 && was_ascii;
+
 				if (!non_ascii) {
 					if (hexdump) {
 						const char *hexlut = "0123456789abcdef";
@@ -213,7 +232,7 @@ int main(int argc, char **argv)
 					}
 					was_non_ascii = 0;
 				}
-				else if (!was_non_ascii) {
+				else if (!was_non_ascii && !is_collapse) {
 					out[len++] = replace_ch;
 					should_print_off = !use_breaks;
 					was_non_ascii = should_skip_non_ascii;
@@ -226,7 +245,8 @@ int main(int argc, char **argv)
 					i++;
 					break;
 				}
-				if (non_ascii) {
+
+				if (non_ascii && !is_collapse) {
 					i++;
 					break;
 				}
