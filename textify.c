@@ -24,6 +24,11 @@ void print_help(const char *prog)
 		"      Only works if each 16-bit character in the intended string\n"
 		"       has a code-point of less than 256\n"
 		"      Only works with --hex disabled\n"
+		"   -t <minimum length>\n"
+		"   --threshold <minimum length>\n"
+		"      Skip strings with a length below <minimum length> bytes\n"
+		"      eg. -t 4\n"
+		"         will keep ABCD but not ABC\n"
 		"   -a <base,digits>\n"
 		"   --addr-base <base,digits>\n"
 		"      Print addresses in the base <base> with a minimum of <digits> digits\n"
@@ -75,6 +80,7 @@ int main(int argc, char **argv)
 	char *in_name = NULL;
 	int offset_base = 0;
 	int offset_digits = 0;
+	int min_length = 0;
 	int should_skip_non_ascii = 0;
 	int nl_every = 0;
 	int nl_from = 0;
@@ -119,6 +125,9 @@ int main(int argc, char **argv)
 				else if (!strcmp(opt, "input")) {
 					in_name = argv[i+1];
 				}
+				else if (!strcmp(opt, "threshold")) {
+				    get_numbers(argv[i+1], &min_length, NULL);
+				}
 				i++;
 			}
 
@@ -154,12 +163,18 @@ int main(int argc, char **argv)
 			else if (c == 'i') {
 				in_name = argv[i+1];
 			}
+			else if (c == 't') {
+			    get_numbers(argv[i+1], &min_length, NULL);
+			}
 			i++;
 		}
 	}
 
 	if (nl_every > 0)
 		nl_from = nl_every - (nl_from % nl_every);
+
+    if (hexdump)
+        min_length *= 3;
 
 	if (in_name)
 		input = fopen(in_name, "rb");
@@ -185,31 +200,12 @@ int main(int argc, char **argv)
 		int len = 0;
 		int was_non_ascii = 0;
 		int was_actually_non_ascii = 0;
+		//int skip_delta = 0;
 
 		int i = 0;
 		for (; i < sz && len < out_end; i++) {
-			if (should_print_off && offset_base) {
-				u64 off = offset + (u64)i;
-				if (off > 0) {
-					n_digits = 0;
-					while (off) {
-						char c = '0' + (char)(off % offset_base);
-						off /= offset_base;
-						if (c > '9') c += 'a' - '9' - 1;
-						number[n_digits++] = c;
-					}
-					for (int j = 0; j < offset_digits - n_digits; j++)
-						out[len++] = '0';
-					while (--n_digits >= 0)
-						out[len++] = number[n_digits];
-				}
-				else {
-					for (int j = 0; j < offset_digits; j++)
-						out[len++] = '0';
-				}
-				out[len++] = ' ';
-				should_print_off = 0;
-			}
+			int old_len = len;
+			int addr_len = 0;
 
 			for (; i < sz && len < out_end; i++) {
 				int use_breaks = nl_every > 0 && nl_every >= nl_from;
@@ -219,6 +215,32 @@ int main(int argc, char **argv)
 				was_actually_non_ascii = in_ptr[i] < ' ' || in_ptr[i] > '~';
 
 				int is_collapse = collapse_16 && !hexdump && in_ptr[i] == 0 && was_ascii;
+				int will_print = !non_ascii || (!was_non_ascii && !is_collapse);
+
+                if (should_print_off && will_print && offset_base) {
+                    addr_len = len;
+				    u64 off = offset + (u64)i;
+				    if (off > 0) {
+					    n_digits = 0;
+					    while (off) {
+						    char c = '0' + (char)(off % offset_base);
+						    off /= offset_base;
+						    if (c > '9') c += 'a' - '9' - 1;
+						    number[n_digits++] = c;
+					    }
+					    for (int j = 0; j < offset_digits - n_digits; j++)
+						    out[len++] = '0';
+					    while (--n_digits >= 0)
+						    out[len++] = number[n_digits];
+				    }
+				    else {
+					    for (int j = 0; j < offset_digits || j < 1; j++)
+						    out[len++] = '0';
+				    }
+				    out[len++] = ' ';
+				    addr_len = len - addr_len;
+				    should_print_off = 0;
+			    }
 
 				if (!non_ascii) {
 					if (hexdump) {
@@ -251,6 +273,13 @@ int main(int argc, char **argv)
 					break;
 				}
 			}
+
+            if (min_length > 0 && len - addr_len < old_len + min_length + 1) {
+                //skip_delta += len - old_len;
+                //should_print_off = 0;
+                len = old_len;
+            }
+
 			i--; // spicy
 		}
 
@@ -265,7 +294,7 @@ int main(int argc, char **argv)
 			sz = fread(in, 1, BUF_SIZE, input);
 		}
 
-		offset += (u64)i;
+		offset += (u64)i; //(u64)(i - skip_delta);
 	}
 
 	putchar('\n');
