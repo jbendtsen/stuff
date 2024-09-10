@@ -29,5 +29,6 @@ _This repository is a collection of small and occasionally useful tools, each ma
 | vc.c                     | A number base converter without conventional integer limits. Can convert to and from any base from 2 to 36.
 | wii-channel-launcher.c   | Super barebones channel launcher for the Wii. Useful if your Wii is modded and you can't be bothered finding batteries for a Wiimote!
 | wii-file-copier.c        | Simple Wii homebrew app which copies files and folders between an SD card and a USB stick
+| winapi-example.swift     | Win32 GUI application, written in Swift. Todo: figure out how to properly expose WinMain, so that `/subsystem:windows` can be used to skip the console.
 | wordle.py                | Simple version of Wordle that runs in any terminal that supports ANSI escape codes
 | zextract.c               | A filesystem extractor for Ocarina of Time & Majora's Mask
