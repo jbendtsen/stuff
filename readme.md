@@ -11,6 +11,7 @@ _This repository is a collection of small and occasionally useful tools, each ma
 | colour-picker.html       | Dynamic colour picker for lists of RGB colours
 | cube.cpp                 | A simple OpenGL demo of a rotating cube
 | dll_info.c               | A handy command-line tool that displays information about DLL/EXE/Other PE files with an additional search function
+| dumb-file-server.py      | HTTP file server for uploading and downloading files
 | enum-process-regions.cpp | Prints a list of memory regions in a Windows process
 | file-transporter.c       | Sends and receives files over TCP/IP. Compatible with Unix and Windows.
 | generate.c               | Tone generator, capable of generating sine, square, sawtooth and triangle waves, as well as white noise
