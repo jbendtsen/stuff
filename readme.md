@@ -8,6 +8,7 @@ _This repository is a collection of small and occasionally useful tools, each ma
 | bin2obj.c                | Converts 3D model files from Need For Speed Underground 2 into Wavefront .OBJ
 | bluenrg2-flasher.cpp     | Flashes a ROM to a BlueNRG2 development board (also provides a console)
 | canvas_test.html         | An example of using a 2D drawing context in JavaScript
+| chunker.c                | Similar to the dd CLI utility, except that it prompts the user by default and auto-sizes the chunk size
 | colour-picker.html       | Dynamic colour picker for lists of RGB colours
 | cube.cpp                 | A simple OpenGL demo of a rotating cube
 | dll_info.c               | A handy command-line tool that displays information about DLL/EXE/Other PE files with an additional search function
