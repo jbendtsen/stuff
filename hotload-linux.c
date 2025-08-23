@@ -1,19 +1,19 @@
+/*
+// library example:
+#include <stdio.h>
+// no header file required
+void example(void) {
+	printf("Hello\n");
+}
+// compile library with:      gcc -shared library.c -o library-`date +%s`.so
+// compile this program with: gcc -ldl hotload-posix.c -o hotload-posix
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #include <dirent.h>
 #include <dlfcn.h>
-
-/* library:
-// compile with:
-// gcc -shared library.c -o library-`date +%s`.so
-// no header file required
-#include <stdio.h>
-
-void example(void) {
-	printf("Hello\n");
-}
-*/
 
 #define LIB_OPEN_FLAGS (RTLD_LAZY | RTLD_LOCAL)
 
