@@ -6,7 +6,7 @@ void example(void) {
 	printf("Hello\n");
 }
 // compile library with:      gcc -shared library.c -o library-`date +%s`.so
-// compile this program with: gcc -ldl hotload-posix.c -o hotload-posix
+// compile this program with: gcc -ldl hotload-linux.c -o hotload-linux
 */
 
 #include <stdio.h>
