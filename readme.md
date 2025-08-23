@@ -18,6 +18,7 @@ _This repository is a collection of small and occasionally useful tools, each ma
 | generate.c               | Tone generator, capable of generating sine, square, sawtooth and triangle waves, as well as white noise
 | github-show-all.html     | A naive GitHub repository scraper which gets every file that is easily accessible and pastes it into the HTML
 | hexed.c                  | A command-line driven hex editor
+| hotload-posix.c          | An example program for hotloading .so libraries on Unix-like OSes
 | mandelbrot.html          | Mandelbrot set simulator using Three.js/WebGL
 | play_url.html            | Takes a file from an input url, then plays the file as if it were 8-bit PCM
 | sdl2-viewer.c            | Example of an image viewer with scale & panning in SDL2
