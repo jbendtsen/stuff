@@ -79,7 +79,7 @@ class SerialServerHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
     def read_serial(self):
-        size = int(self.headers.get(ID_HDR))
+        size = int(self.headers.get("x-size"))
         s = self.get_this_serial()
         print(not s)
         data = s.read(size)
