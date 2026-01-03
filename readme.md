@@ -23,6 +23,7 @@ _This repository is a collection of small and occasionally useful tools, each ma
 | play_url.html            | Takes a file from an input url, then plays the file as if it were 8-bit PCM
 | sc64\_ft\_prog.c         | Flashes the FT232H EEPROM in a SummerCart64
 | sdl2-viewer.c            | Example of an image viewer with scale & panning in SDL2
+| serialserver.py          | An HTTP client and server allowing for remote access to the serial port using PySerial
 | spacetab.c               | A text file converter for spaces <-> tabs, DOS <-> Unix line-endings, can iterate through directories recursively
 | structflt.cpp            | Takes a data structure, applies input data to it and prints the result with formatting
 | struct-parser.cpp        | Rudimentary C/C++ struct parser. Supports inline/external structs and unions.
